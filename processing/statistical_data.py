@@ -86,6 +86,17 @@ def process_data_usdot_t2(
     df_t2 = df_t2.loc[df_t2['AIRCRAFT_CONFIG'] == 1] # passenger aircraft only
     df_t2 = df_t2.drop(columns=['CARRIER_GROUP', 'AIRCRAFT_CONFIG'])
 
+    list_numeric_columns = [
+        'AVL_SEAT_MILES',
+        'REV_PAX_MILES',
+        'AIRCRAFT_FUELS',
+        'HOURS_AIRBORNE',
+    ]
+    df_t2[list_numeric_columns] = df_t2[list_numeric_columns].replace(
+        to_replace=0,
+        value=pd.NA
+    )
+
     # CUSTOM COLUMN CALCULATIONS
 
     df_t2['Fuel/Available Seat Distance'] = df_t2['AIRCRAFT_FUELS']/df_t2['AVL_SEAT_MILES']
@@ -98,7 +109,6 @@ def process_data_usdot_t2(
 
     df_t2 = df_t2.loc[df_t2['REV_PAX_MILES'] <= df_t2['AVL_SEAT_MILES']]
     df_t2 = df_t2.loc[df_t2['HOURS_AIRBORNE'] <= df_t2['ACRFT_HRS_RAMPTORAMP']]
-    df_t2 = df_t2.dropna(subset=['Fuel Flow'])
     
     # RETURN
 
