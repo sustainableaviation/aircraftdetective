@@ -37,7 +37,7 @@ def process_data_usdot_t2(
         header=0,
         index_col=None,
         sep=',',
-        names=['AIRCRAFT_TYPE', 'Aircraft Designation'],
+        names=['AIRCRAFT_TYPE', 'Aircraft Designation (US DOT Schedule T2)'],
     )
     df_t2 = pd.merge(
         left=df_t2,
@@ -113,7 +113,7 @@ def process_data_usdot_t2(
     # RETURN
 
     list_return_columns = [
-        'Aircraft Designation',
+        'Aircraft Designation (US DOT Schedule T2)',
         'Fuel/Available Seat Distance',
         'Fuel/Revenue Seat Distance',
         'Fuel Flow',

@@ -16,18 +16,16 @@ def process_data_babikian_figures(
         header=0,
         index_col=None,
         usecols='B:C',
-        names=['EU', 'Aircraft Designation (Babikian)'],
+        names=['EU (Babikian et al.)', 'Aircraft Designation (Babikian et al.)'],
         engine='openpyxl',
     )
     df = df.astype(
         {
-            'EU': 'pint[MJ/km]',
-            'Aircraft Designation (Babikian)': 'pint[]',
+            'EU (Babikian et al.)': 'pint[MJ/km]',
+            'Aircraft Designation (Babikian et al.)': 'string',
         }
     )
+    df = df.dropna(how='any', axis=0)
+    df = df[df['Aircraft Designation (Babikian et al.)'] != '???']
+    
     return df
-
-
-path_xlsx_babikian = Path('/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Data from Literature.xlsx')
-
-df = process_data_babikian_figures(path_xlsx_babikian)
