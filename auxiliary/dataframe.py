@@ -87,7 +87,6 @@ def export_typed_dataframe_to_excel(
         ignore_index=True
     )
 
-    pd.io.formats.excel.ExcelFormatter.header_style = None
     df_export.to_excel(
         path,
         freeze_panes=(2, 0),
