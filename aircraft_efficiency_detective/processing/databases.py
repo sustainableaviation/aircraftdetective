@@ -4,6 +4,7 @@ import pandas as pd
 
 from pathlib import Path
 
+
 def read_aircraft_database(
     path_json_aircraft_database: Path,
     dict_properties: dict,
