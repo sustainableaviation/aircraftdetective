@@ -1,6 +1,6 @@
 # %%
 
-from aircraft_efficiency_detective import ureg
+from aircraftdetective import ureg
 
 import pandas as pd
 import pint
