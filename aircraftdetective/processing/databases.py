@@ -20,22 +20,22 @@ def read_aircraft_database(
 
     ```
     {
-    "id":"1edbc3ab-ed02-6b78-b000-951ebcf1a8fa",
-    "aircraftFamily":"airplane",
-    "engineCount":1,
-    "engineFamily":"piston",
-    "engineModels":["1ed869d8-bac4-67a4-a133-df00b6f38f52","1ed869d8-e2ad-6d92-a133-799194a3de38"],
-    "iataCode":null,
-    "icaoCode":null,
-    "manufacturer":"1edbc3a6-8e32-6c24-b000-9ff27b37bf11",
-    "name":"1",
-    "propertyValues":[
-        {"property":"1ec96f93-22b5-66f0-9933-45bd403e4df0","value":839},
-        {"property":"1ec96f94-5471-66de-9933-a93eae676780","value":839},
-        {"property":"1ec96f9c-4371-6098-9933-2d909f93f3cd","value":91}
-    ],
-    "tags":[],
-    "url":"https:\/\/aircraft-database.com\/database\/aircraft-types\/1"
+        "id":"1edbc3ab-ed02-6b78-b000-951ebcf1a8fa",
+        "aircraftFamily":"airplane",
+        "engineCount":1,
+        "engineFamily":"piston",
+        "engineModels":["1ed869d8-bac4-67a4-a133-df00b6f38f52","1ed869d8-e2ad-6d92-a133-799194a3de38"],
+        "iataCode":null,
+        "icaoCode":null,
+        "manufacturer":"1edbc3a6-8e32-6c24-b000-9ff27b37bf11",
+        "name":"1",
+        "propertyValues":[
+            {"property":"1ec96f93-22b5-66f0-9933-45bd403e4df0","value":839},
+            {"property":"1ec96f94-5471-66de-9933-a93eae676780","value":839},
+            {"property":"1ec96f9c-4371-6098-9933-2d909f93f3cd","value":91}
+        ],
+        "tags":[],
+        "url":"https:\/\/aircraft-database.com\/database\/aircraft-types\/1"
     },
     ```
 
@@ -242,7 +242,6 @@ def read_engine_database(
     return df_grouped
 
 
-
 def read_properties_database(path_json_properties: Path) -> dict:
     """
     Reads a JSON backup of the the [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
@@ -339,15 +338,24 @@ def read_manufacturers_database(path_json_manufacturers: Path) -> pd.DataFrame:
     return dict_manufacturers
 
 
+# TODO
+# 
+# 
+# icao = icao.groupby(['Engine Identification'], as_index=False).agg({'TSFC T/O':'mean','TSFC Cruise':'mean', 'Final Test Date':'min', 'B/P Ratio':'mean', 'Pressure Ratio':'mean'})
+
+
+# %%
+
 path_json_manufacturers = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/manufacturers.json')
 dict_manufacturers = read_manufacturers_database(path_json_manufacturers)
 
 path_json_properties = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/properties.json')
 dict_properties = read_properties_database(path_json_properties)
 
-path_json_engine_models = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/engine-models.json')
-df_engines = read_engine_database(path_json_engine_models, dict_properties, dict_manufacturers)
 
 path_json_aircraft_models = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/aircraft-types.json')
 df_aircraft = read_aircraft_database(path_json_aircraft_models, dict_properties, dict_manufacturers)
+
+path_json_engine_models = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/engine-models.json')
+df_engine = read_engine_database(path_json_engine_models, dict_properties, dict_manufacturers)
 # %%

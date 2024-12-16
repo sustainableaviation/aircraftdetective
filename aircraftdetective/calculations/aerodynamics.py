@@ -118,7 +118,12 @@ def calculate_lift_to_drag_ratio(
 
     See Also
     --------
-    - []()
+    Range parameter:
+
+    -[Young (2018), eqn. (13.36)](https://doi.org/10.1002/9781118534786)
+
+    Other uses of the correction factor beta:
+    - [Martinez-Val et al. (2005), eqn. (4)](https://doi.org/10.2514/6.2005-121)
 
     Parameters
     ----------
@@ -234,22 +239,6 @@ def calculate(savefig, air_density,flight_vel, g, folder_path):
     aircraft_data['k'] = 1 / (math.pi * aircraft_data['Aspect Ratio'] * 0.8)
     aircraft_data['c_Di'] = aircraft_data['k']*(aircraft_data['c_L']**2)
     aircraft_data['c_D0'] = aircraft_data['c_D']-aircraft_data['c_Di']
-
-    # Load Data from Lee
-    lee = pd.read_excel(Path("database/rawdata/aircraftproperties/Aircraft Databank v2.xlsx"), sheet_name='New Data Entry')
-    lee = lee.dropna(subset='L/Dmax')
-    lee = lee.groupby(['Name','YOI'], as_index=False).agg({'L/Dmax':'mean'})
-    lee['L/D estimate'] = lee['L/Dmax']
-
-    # If set True use Data from Lee for L/D when possible.
-    use_lee_et_al = True
-    if use_lee_et_al:
-        for index, row in lee.iterrows():
-            name = row['Name']
-            value = row['L/D estimate']
-
-            # update corresponding row in aircraftdata with the value from lee
-            aircraft_data.loc[aircraft_data['Name'] == name, 'L/D estimate'] = value
 
     # Drop some Rows and Save DF
     aircraft_data = aircraft_data.drop(columns=['MTOW\n(Kg)', 'MZFW_POINT_1\n(Kg)', 'RANGE_POINT_1\n(Km)', 'MZFW_POINT_2\n(Kg)', 'RANGE_POINT_2\n(Km)'])

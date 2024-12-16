@@ -5,6 +5,45 @@ import pandas as pd
 import pint_pandas
 
 
+def rename_columns_and_set_units(
+    df: pd.DataFrame,
+    column_names_and_units: list[tuple[str, str, pint_pandas.pint_array.PintType]]
+) -> pd.DataFrame:
+    """
+    Given a dataframe and a list of tuples describing the column names and units, rename the columns and set the units.
+
+    _extended_summary_
+
+    columns_and_units = [
+        ("Engine Identification", "Engine Identification", str),
+        ("Final Test Date", "Final Test Date", int),
+        ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
+        ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
+    ]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        _description_
+    column_names_and_units : list[tuple[str, str, pint_pandas.pint_array.PintType]]
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
+
+    subset = [name_old for name_old, _, _ in column_names_and_units]
+    df = df[subset]
+
+    for name_old, name_new, dtype in column_names_and_units:
+        df = df.rename(columns={name_old: name_new})
+        df[name_new] = df[name_new].astype(dtype)
+
+    return df
+
+
 def _return_short_units(dtype: pint_pandas.pint_array.PintType) -> str:
     """
     Given a pint_pandas PintType object, return the short unit string.
