@@ -16,84 +16,7 @@ import numpy as np
 
 # %%
 
-def calculate_aerodynamic_efficiency(
-    path_excel_aircraft_data_payload_range: Path,
-    beta_widebody: float = 0.04,
-    beta_narrowbody: float = 0.06,
-) -> pd.DataFrame:
-    """_summary_
 
-    .. image:: https://upload.wikimedia.org/wikipedia/commons/0/04/Payload_Range_Diagram_Airbus_A350-900.svg
-
-    Parameters
-    ----------
-    path_excel_aircraft_data_payload_range : Path
-        _description_
-    beta_widebody : float, optional
-        _description_, by default 0.96
-    beta_narrowbody : float, optional
-        _description_, by default 0.88
-
-    Returns
-    -------
-    pd.DataFrame
-        _description_
-    """
-    
-    df_payload_range = pd.read_excel(
-        io=path_excel_aircraft_data_payload_range,
-        sheet_name='Data',
-        engine='openpyxl',
-    )
-
-    list_regional_aircraft = [
-        'RJ-200ER /RJ-440',
-        'RJ-700',
-        'Embraer ERJ-175',
-        'Embraer-145',
-        'Embraer-135',
-        'Embraer 190'
-    ]
-    df_payload_range = df_payload_range[~df_payload_range['Name'].isin(list_regional_aircraft)]
-
-    df_payload_range
-
-# %%
-
-beta=0.96
-
-df = pd.read_excel(
-    io='/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Aircraft Lift-to-Drag Data Extraction.xlsx',
-    sheet_name='Data',
-    header=[0, 1],
-    engine='openpyxl',
-)
-dfq = df.pint.quantify(level=1)
-df.columns = df.columns.droplevel(1) # units not needed to compute the ratio
-
-df["TSFC"] = 15
-df["v_cruise"] = 900
-
-# %%
-
-df["TSFC"] = 15
-df["TSFC"] = df["TSFC"].astype('pint[mg/(N*s)]')
-
-df["v_cruise"] = 900
-df["v_cruise"] = df["v_cruise"].astype('pint[km/h]')
-
-
-# %%
-
-def calculate_breguet_range_factor_from_payload_range_data(
-    R: float,
-    beta: float,
-    MTOW: float,
-    MZFW: float,
-) -> float:
-    return (R/np.log((MTOW/MZFW)*(1-beta)))
-
-"""
 @unit.check(
     '[length]',
     '[]',
@@ -102,7 +25,6 @@ def calculate_breguet_range_factor_from_payload_range_data(
     '[speed]',
     '[time]/[length]'
 )
-"""
 def calculate_lift_to_drag_ratio(
     R: pint.Quantity,
     beta: pint.Quantity,
@@ -112,13 +34,15 @@ def calculate_lift_to_drag_ratio(
     TSFC_cruise: pint.Quantity,
 ) -> pint.Quantity:
     """
-    Calculates the lift-to-drag ratio (=aerodynamic efficiency) of an aircraft based on the Breguet range equation.
+    Given points from a payload/range diagram of an aircraft,
+    calculates the lift-to-drag ratio (=aerodynamic efficiency)
+    based on the Breguet range equation.
 
-    _extended_summary_
+    .. image:: https://upload.wikimedia.org/wikipedia/commons/0/04/Payload_Range_Diagram_Airbus_A350-900.svg
 
     See Also
     --------
-    Range parameter:
+    Range parameter $K$:
 
     -[Young (2018), eqn. (13.36)](https://doi.org/10.1002/9781118534786)
 
@@ -128,28 +52,57 @@ def calculate_lift_to_drag_ratio(
     Parameters
     ----------
     R : float
-        _description_
+        Aircraft range, in units of [length]
     beta : float
-        _description_
+        Correction factor for the Breguet range equation, dimensionless
     MTOW : float
-        _description_
+        Maximum takeoff weight, in units of [mass]
     MZFW : float
-        _description_
+        Maximum zero fuel weight, in units of [mass]
     v_cruise : float
-        _description_
+        Cruise speed, in units of [speed]
     TSFC_cruise : float
-        _description_
+        Thrust-specific fuel consumption at cruise, in units of [time]/[length] (mg/kNs has dimensions of [time]/[length])
 
     Returns
     -------
     float
-        _description_
+        Lift-to-drag ratio ("L/D"), dimensionless
     """
     g = 9.81 * unit('m/s**2')
     K = R/np.log((MTOW/MZFW)*(1-beta))
     return (K*g*TSFC_cruise)/v_cruise
 
 
+@unit.check(
+    '[length]',
+    '[area]',
+)
+def compute_aspect_ratio(
+    b: pint.Quantity,
+    S: pint.Quantity,
+) -> pd.DataFrame:
+    """
+    Given the wingspan $b$ and the wing area $S$, returns the aspect ratio $A$ of an aircraft.
+
+    Parameters
+    ----------
+    b : pint.Quantity
+        Wingspan, in units of [length]
+    S : pint.Quantity
+        Wing area, in units of [area]
+
+    See Also
+    --------
+    - [Young (2018), eqn. (3.3)](https://doi.org/10.1002/9781118534786)
+    - [Aspect Ratio on Wikipedia](https://en.wikipedia.org/wiki/Aspect_ratio_(aeronautics))
+
+    Returns
+    -------
+    pint.Quantity
+        Aspect ratio, dimensionless
+    """
+    return (b**2)/S
 
 
 # %%
@@ -165,13 +118,14 @@ df["L/D"] = df.apply(
     ),
     axis=1
 )
-
-# %%
-
-dfq.apply(
-    lambda row: test_func(MTOW=row["MTOW"]),
+df["Aspect Ratio"] = df.apply(
+    lambda row: compute_aspect_ratio(
+        b=row["Wingspan"],
+        S=row["Wing Area"]
+    ),
     axis=1
 )
+
 
 # %%
 
@@ -199,20 +153,6 @@ df["Average Range Factor"] = (df["Range Factor at Point A"] + df["Range Factor a
 
 # %%
 
-def calculate(savefig, air_density,flight_vel, g, folder_path):
-
-    # Load Data
-    aircraft_data = pd.read_excel(Path("Databank.xlsx"))
-    lift_data = pd.read_excel(Path("database/rawdata/aircraftproperties/Aicrraft Range Data Extraction.xlsx"), sheet_name='2. Table')
-
-    # Remove these Regional jets, it seems, that their data is not accurate, possibly because overall all values are much smaller.
-    lift_data = lift_data[~lift_data['Name'].isin(['RJ-200ER /RJ-440', 'RJ-700', 'Embraer ERJ-175', 'Embraer-145', 'Embraer-135', 'Embraer 190'])]
-    breguet = aircraft_data.merge(lift_data, on='Name', how='left')
-
-    # Factor Beta which accounts for the weight fraction burnt in non cruise phase and reserve fuel
-    beta = lambda x: 0.96 if x == 'Wide' else(0.94 if x =='Narrow' else 0.88)
-
-
 
     # Calculate Range Paramer K at point B and C
     breguet['Factor'] = breguet['Type'].apply(beta)
@@ -229,17 +169,4 @@ def calculate(savefig, air_density,flight_vel, g, folder_path):
     breguet['A'] = breguet['K_1']*g*0.001*breguet['TSFC Cruise']
     breguet['L/D estimate'] = breguet['A']/flight_vel
 
-    # Calculate further Aerodynamic Statistics
-    aircraft_data = breguet.drop(columns=['#', 'Aircraft Model Chart', 'Link', 'Factor', 'Ratio 1',
-           'Ratio 2', 'K_1', 'K_2', 'K', 'A'])
-    aircraft_data['Dmax'] = (g * aircraft_data['MTOW\n(Kg)']) / aircraft_data['L/D estimate']
-    aircraft_data['Aspect Ratio'] = aircraft_data['Wingspan,float,metre']**2/aircraft_data['Wing area,float,square-metre']
-    aircraft_data['c_L'] = (2* g * aircraft_data['MTOW\n(Kg)']) / (air_density*(flight_vel**2)*aircraft_data['Wing area,float,square-metre'])
-    aircraft_data['c_D'] = aircraft_data['c_L'] / aircraft_data['L/D estimate']
-    aircraft_data['k'] = 1 / (math.pi * aircraft_data['Aspect Ratio'] * 0.8)
-    aircraft_data['c_Di'] = aircraft_data['k']*(aircraft_data['c_L']**2)
-    aircraft_data['c_D0'] = aircraft_data['c_D']-aircraft_data['c_Di']
 
-    # Drop some Rows and Save DF
-    aircraft_data = aircraft_data.drop(columns=['MTOW\n(Kg)', 'MZFW_POINT_1\n(Kg)', 'RANGE_POINT_1\n(Km)', 'MZFW_POINT_2\n(Kg)', 'RANGE_POINT_2\n(Km)'])
-    aircraft_data.to_excel(r'Databank.xlsx', index=False)

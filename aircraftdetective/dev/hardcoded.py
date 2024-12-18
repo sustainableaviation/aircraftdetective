@@ -1,3 +1,7 @@
+def estimate_a380_overall_efficiency():
+    boeing747 = airplanes_release_year.loc[airplanes_release_year['Description']=='Boeing 747-400', 'MJ/ASK'].iloc[0]
+    a380 = {'Description': 'A380', 'MJ/ASK': 0.88*boeing747}
+
 # Add K_1 for the Comet 4
     comet4_k1 = 5190 / (np.log(0.94*73480/43410)) # data for the Comet 4 from Aerospaceweb.org
     breguet.loc[breguet['Name'] == 'Comet 4', 'K_1'] = comet4_k1

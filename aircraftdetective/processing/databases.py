@@ -4,6 +4,15 @@ import pandas as pd
 
 from pathlib import Path
 
+import sys
+import os
+module_path = os.path.abspath("/Users/michaelweinold/github/aircraftdetective")
+if module_path not in sys.path:
+    sys.path.append(module_path)
+
+from aircraftdetective.auxiliary import dataframe
+
+
 
 def read_aircraft_database(
     path_json_aircraft_database: Path,
@@ -35,7 +44,7 @@ def read_aircraft_database(
             {"property":"1ec96f9c-4371-6098-9933-2d909f93f3cd","value":91}
         ],
         "tags":[],
-        "url":"https:\/\/aircraft-database.com\/database\/aircraft-types\/1"
+        "url":"https://aircraft-database.com/database/aircraft-types/1"
     },
     ```
 
@@ -338,24 +347,54 @@ def read_manufacturers_database(path_json_manufacturers: Path) -> pd.DataFrame:
     return dict_manufacturers
 
 
-# TODO
-# 
-# 
-# icao = icao.groupby(['Engine Identification'], as_index=False).agg({'TSFC T/O':'mean','TSFC Cruise':'mean', 'Final Test Date':'min', 'B/P Ratio':'mean', 'Pressure Ratio':'mean'})
+def enrich_aircraft_database(
+    path_json_aircraft_database: str,
+    path_json_properties: str,
+    path_json_manufacturers: str
+) -> pd.DataFrame:
+    df_aircraft = read_aircraft_database(
+        path_json_aircraft_database=path_json_aircraft_database,
+        dict_properties=read_properties_database(path_json_properties),
+        dict_manufacturers=read_manufacturers_database(path_json_manufacturers)
+    )
+    return df_aircraft
 
 
-# %%
+def aggregate_aircraft_database(
+    df_aircraft: pd.DataFrame
+) -> pd.DataFrame:
+    
+    df_aircraft_aggregated = df_aircraft.groupby(
+        [
+            'Aircraft Designation',
+            'Aircraft Manufacturer'
+        ],
+        as_index=False
+    ).agg(
+        {
+            'Wingspan [m]': 'mean',
+            'Wingspan (winglets) [m]' : 'mean',
+            'Wing Area [m²]': 'mean',
+        }
+    )
 
-path_json_manufacturers = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/manufacturers.json')
-dict_manufacturers = read_manufacturers_database(path_json_manufacturers)
 
-path_json_properties = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/properties.json')
-dict_properties = read_properties_database(path_json_properties)
+    df_aircraft_aggregated['Wingspan'] = df_aircraft_aggregated.apply(
+        lambda row:
+        row['Wingspan (winglets) [m]']
+        if pd.notna(row['Wingspan (winglets) [m]'])
+        else row['Wingspan [m]'],
+        axis=1
+    )
 
+    df_aircraft_aggregated = dataframe.rename_columns_and_set_units(
+        df=df_aircraft_aggregated,
+        column_names_and_units=[
+            ("Aircraft Designation", "Aircraft Designation (aircraft-database.com)", str),
+            ("Wingspan [m]", "Wingspan", "pint[m]"),
+            ("Wing Area [m²]", "Wing Area", "pint[m**2]"),
+        ]
+    )
 
-path_json_aircraft_models = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/aircraft-types.json')
-df_aircraft = read_aircraft_database(path_json_aircraft_models, dict_properties, dict_manufacturers)
+    return df_aircraft_aggregated
 
-path_json_engine_models = Path('/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/aircraft-database/engine-models.json')
-df_engine = read_engine_database(path_json_engine_models, dict_properties, dict_manufacturers)
-# %%

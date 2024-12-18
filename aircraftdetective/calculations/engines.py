@@ -80,7 +80,7 @@ def determine_takeoff_to_cruise_tsfc_ratio(
     r_squared_linear = r_squared(y, linear_fit(x))
     r_squared_polynomial = r_squared(y, polynomial_fit(x))
 
-    return df_engines, linear_fit, polynomial_fit, r_squared_linear, r_squared_polynomial
+    return linear_fit, polynomial_fit, r_squared_linear, r_squared_polynomial
 
 
 def scale_engine_data_from_icao_emissions_database(
@@ -112,9 +112,9 @@ def scale_engine_data_from_icao_emissions_database(
 
     df_engines = dataframe.rename_columns_and_set_units(
         df=df_engines,
-        columns_and_units=[
+        column_names_and_units=[
             ("Engine Identification", "Engine Identification", str),
-            ("Final Test Date", "Final Test Date", int),
+            ("Final Test Date", "Final Test Date", 'Int32'),
             ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
             ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
             ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
@@ -129,7 +129,7 @@ def scale_engine_data_from_icao_emissions_database(
     # re-set units, because the apply function does not keep the pint units
     df_engines['TSFC(cruise)'] = df_engines['TSFC(cruise)'].astype(df_engines['TSFC(takeoff)'].dtype)
 
-    dataframe.export_typed_dataframe_to_excel(df=df_engines, path=path_excel_engine_data_icao_out)
+    return df_engines
 
 
 def plot_takeoff_to_cruise_tsfc_ratio(
@@ -208,6 +208,7 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
     fig.show()
 
+"""
 # %%
 
 df_engines, pol1, pol2, _, _ = determine_takeoff_to_cruise_tsfc_ratio(path_excel_engine_data_for_calibration='/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Engine Database (TSFC Data).xlsx')
@@ -223,3 +224,4 @@ scale_engine_data_from_icao_emissions_database(
     path_excel_engine_data_icao_out='Scaled.xlsx',
     scaling_polynomial=pol2
 )
+"""
