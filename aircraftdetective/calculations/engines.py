@@ -210,9 +210,36 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
 # %%
 
-# Calculate the Engine Efficiency
-    models4['Engine Efficiency'] = flight_vel / (heatingvalue * models4['TSFC Cruise'])
+@ureg.check(
+    '[time]/[length]',
+    '[speed]',
+)
+def compute_overall_engine_efficiency(
+    TSFC_cruise: pint.Quantity,
+    cruise_velocity: pint.Quantity,
+) -> pint.Quantity:
+    """
+    Given the thrust-specific fuel consumption $TSFC$, the cruise velocity $v_0$, and the fuel heating value $LHV_{fuel}$,
+    returns the overall engine efficiency $\eta_0$.
 
+    Parameters
+    ----------
+    TSFC : pint.Quantity
+        Thrust-specific fuel consumption, in units of [time]/[length]
+    cruise_velocity : pint.Quantity
+        Cruise velocity, in units of [speed]
+
+    See Also
+    --------
+    - [Young (2018), eqn. (8.24, solved for η₀) and figure 8.3.](https://doi.org/10.1002/9781118534786)
+
+    Returns
+    -------
+    pint.Quantity
+        Overall engine efficiency, dimensionless
+    """
+    fuel_heating_value = 44.1 * ureg('MJ/kg') # heating value of Jet A-1 fuel
+    return cruise_velocity / (fuel_heating_value * TSFC_cruise)
 
 
 """

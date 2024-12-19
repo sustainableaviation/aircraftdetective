@@ -78,7 +78,7 @@ def compute_lift_to_drag_ratio(
 def compute_aspect_ratio(
     b: pint.Quantity,
     S: pint.Quantity,
-) -> pd.DataFrame:
+) -> pint.Quantity:
     """
     Given the wingspan $b$ and the wing area $S$, returns the aspect ratio $A$ of an aircraft.
 
