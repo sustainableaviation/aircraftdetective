@@ -208,6 +208,13 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
     fig.show()
 
+# %%
+
+# Calculate the Engine Efficiency
+    models4['Engine Efficiency'] = flight_vel / (heatingvalue * models4['TSFC Cruise'])
+
+
+
 """
 # %%
 

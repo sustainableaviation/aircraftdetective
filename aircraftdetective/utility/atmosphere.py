@@ -35,7 +35,7 @@ def calculate_atmospheric_confitions(altitude: float = 10500 * unit.m) -> tuple[
     Returns
     -------
     tuple[float, float, float]
-        Tuple of air density (⍴)[kg/m³], aircraft velocity[km/h], temperature [°C]
+        Tuple of air density (⍴)[kg/m³], temperature [°C]
     """
     
     # ISA temperature variation

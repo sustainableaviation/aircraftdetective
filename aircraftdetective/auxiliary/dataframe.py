@@ -7,7 +7,7 @@ import pint_pandas
 
 def rename_columns_and_set_units(
     df: pd.DataFrame,
-    column_names_and_units: list[tuple[str, str, pint_pandas.pint_array.PintType]]
+    column_names_and_units: list[tuple[str, str, pint_pandas.pint_array.PintType]],
 ) -> pd.DataFrame:
     """
     Given a dataframe and a list of tuples describing the column names and units, rename the columns and set the units.
@@ -34,12 +34,11 @@ def rename_columns_and_set_units(
         _description_
     """
 
-    subset = [name_old for name_old, _, _ in column_names_and_units]
-    df = df[subset]
-
     for name_old, name_new, dtype in column_names_and_units:
-        df = df.rename(columns={name_old: name_new})
-        df[name_new] = df[name_new].astype(dtype)
+        if name_old in df.columns:
+            df = df.rename(columns={name_old: name_new})
+            if dtype != None:
+                df[name_new] = df[name_new].astype(dtype)
 
     return df
 

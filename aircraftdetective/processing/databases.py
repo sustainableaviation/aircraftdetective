@@ -1,8 +1,12 @@
 # %%
-import json
+from pathlib import Path
+
 import pandas as pd
 
-from pathlib import Path
+import pint
+ureg = pint.get_application_registry()
+import pint_pandas
+
 
 import sys
 import os
@@ -11,114 +15,159 @@ if module_path not in sys.path:
     sys.path.append(module_path)
 
 from aircraftdetective.auxiliary import dataframe
+from aircraftdetective import config
 
+# %%
 
 
 def read_aircraft_database(
     path_json_aircraft_database: Path,
-    dict_properties: dict,
-    dict_manufacturers: dict
+    dict_manufacturers: dict,
+    list_column_names_and_units_properties: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
     """
-    Reads a JSON backup of the the entire [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
-    (discontinued as of 01-2024) and returns a DataFrame with all aircraft models and their properties.
+    Reads a JSON backup of the the entire [aircraft-database.com](https://doi.org/10.5281/zenodo.14382244)
+    `aircraft-types` table and returns a DataFrame with all aircraft models and their properties.
     
     Since aircraft can have multiple engines and `propertyValues`,
-    the function will explode these columns to have one row per engine and property.
+    the function explodes these columns to have one row per engine and property.
+    
     For example, the following JSON object:
 
     ```
     {
-        "id":"1edbc3ab-ed02-6b78-b000-951ebcf1a8fa",
+        "id":"123abc",
         "aircraftFamily":"airplane",
-        "engineCount":1,
-        "engineFamily":"piston",
-        "engineModels":["1ed869d8-bac4-67a4-a133-df00b6f38f52","1ed869d8-e2ad-6d92-a133-799194a3de38"],
-        "iataCode":null,
-        "icaoCode":null,
-        "manufacturer":"1edbc3a6-8e32-6c24-b000-9ff27b37bf11",
-        "name":"1",
+        "name":"Aircraft 333",
+        "engineModels":["alpha","beta"],
         "propertyValues":[
-            {"property":"1ec96f93-22b5-66f0-9933-45bd403e4df0","value":839},
-            {"property":"1ec96f94-5471-66de-9933-a93eae676780","value":839},
-            {"property":"1ec96f9c-4371-6098-9933-2d909f93f3cd","value":91}
+            {"property":"345cde","value":42},
+            {"property":"456def","value":12.45},
         ],
-        "tags":[],
-        "url":"https://aircraft-database.com/database/aircraft-types/1"
+        (...)
     },
     ```
 
-    will be transformed into:
+    will be transformed into a DataFrame of the kind:
 
-    | id                                   | (...) | engineModels                         | propertyValues                       |
-    |--------------------------------------|-------|--------------------------------------|--------------------------------------|
-    | 1edbc3ab-ed02-6b78-b000-951ebcf1a8fa | (...) | 1ed869d8-bac4-67a4-a133-df00b6f38f52 | 1ec96f93-22b5-66f0-9933-45bd403e4df0 |
-    | 1edbc3ab-ed02-6b78-b000-951ebcf1a8fa | (...) | 1ed869d8-bac4-67a4-a133-df00b6f38f52 | 1ec96f94-5471-66de-9933-a93eae676780 |
-    | 1edbc3ab-ed02-6b78-b000-951ebcf1a8fa | (...) | 1ed869d8-bac4-67a4-a133-df00b6f38f52 | 1ec96f9c-4371-6098-9933-2d909f93f3cd |
-    | 1edbc3ab-ed02-6b78-b000-951ebcf1a8fa | (...) | 1ed869d8-e2ad-6d92-a133-799194a3de38 | 1ec96f93-22b5-66f0-9933-45bd403e4df0 |
-    | 1edbc3ab-ed02-6b78-b000-951ebcf1a8fa | (...) | 1ed869d8-e2ad-6d92-a133-799194a3de38 | 1ec96f94-5471-66de-9933-a93eae676780 |
-    | 1edbc3ab-ed02-6b78-b000-951ebcf1a8fa | (...) | 1ed869d8-e2ad-6d92-a133-799194a3de38 | 1ec96f9c-4371-6098-9933-2d909f93f3cd |
+    | id     | Name         | Engine Model | Property 1 | Property 2 | (...) |
+    |--------|--------------|--------------|------------|------------|-------|
+    | 123abc | Aircraft 333 | alpha        | 42         | 12.45      | (...) |
+    | 123abc | Aircraft 333 | beta         | 42         | 12.45      | (...) |
 
     See Also
     --------
     - [aircraft-database.com (archived)](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
+    - [aircraft-database.com (Zenodo data re-upload)](https://doi.org/10.5281/zenodo.14382244)
 
     Parameters
     ----------
     path_json_aircraft_models : Path
         Path to the JSON file containing the aircraft models and their properties.
-
+    dict_properties : dict
+        Dictionary mapping the property IDs to their names.
+    list_column_names_and_units_properties : list[tuple[str, str, str]]
+        List of tuples with the property id, property name and property unit.
+        
     Returns
     -------
     pd.DataFrame
-        _description_
+        DataFrame with the aircraft models and their properties. Columns are of `pint_pandas` data types.
     """
 
     df = pd.read_json(path_json_aircraft_database)
-    df = df.loc[df['aircraftFamily'].isin(['airplane'])] # remove helicopters, amphibious, etc.
-    df = df[df['tags'].str.len() == 0] # remove entries with tags (e.g. ['military'])
 
+    # remove helicopters, amphibious, etc.
+    df = df.loc[df['aircraftFamily'].isin(['airplane'])]
+    # remove entries with tags (e.g. ['military'])
+    df = df[df['tags'].str.len() == 0].drop(columns=['tags'])
+    # add manufacturer names
     df['manufacturer'] = df['manufacturer'].map(dict_manufacturers)
 
+    """
+    Explode engine models. From a dataframe of the kind:
+
+    | id | (...) | engineModels        |
+    |----|-------|---------------------|
+    | 1  | (...) | ['alpha', 'beta']   |
+
+    generate a dataframe of the kind:
+
+    | id | (...) | engineModels |
+    |----|-------|--------------|
+    | 1  | (...) | alpha        |
+    | 1  | (...) | beta         |
+    """
     df = df.explode('engineModels').reset_index(drop=True)
-    df = df.explode('propertyValues').reset_index(drop=True)
+    
+    """
+    Explode propertyValues. From a dataframe of the kind:
 
-    df_properties = pd.json_normalize(df['propertyValues'])
-    df_properties['property'] = df_properties['property'].map(dict_properties)
+    | id | (...) | propertyValues                                                          |
+    |----|-------|-------------------------------------------------------------------------|
+    | 1  | (...) | [{"property":"345cde","value":42}, {"property":"456def","value":12.45}] |
+    | 2  | (...) | [{"property":"345cde","value":13}, {"property":"456def","value":23.56}] |
 
-    df_properties_pivot = df_properties.pivot(columns='property', values='value')
+    generate a dataframe of the kind:
 
+    | id | (...) | 345cde | 456def |
+    |----|-------|--------|--------|
+    | 1  | (...) | 42     | 12.45  |
+    | 2  | (...) | 13     | 23.56  |
+
+    by generating a Pandas Series of the kind:
+
+    | index | propertyValues                                                        |
+    |-------|-----------------------------------------------------------------------|
+    | 0     | {"property":"345cde","value":42}, {"property":"456def","value":12.45} |
+    | 1     | {"property":"345cde","value":13}, {"property":"456def","value":23.56} |
+
+    and converting it to a DataFrame of the kind:
+
+    | index | 345cde | 456def |
+    |-------|--------|--------|
+    | 0     | 42     | 12.45  |
+    | 1     | 13     | 23.56  |
+    """
+    property_values: pd.Series = df["propertyValues"].apply(
+        lambda x: {item["property"]: item["value"] for item in x}
+    )
+    properties_df = pd.DataFrame(property_values.tolist())
     df = pd.concat(
-        objs=[
-            df,
-            df_properties_pivot
-        ],
+        objs=[df.drop(columns=["propertyValues"]), properties_df],
         axis=1
     )
 
-    dict_column_names = {
-        'id': '_id_aircraft',
-        'engineModels': '_id_engine',
-        'manufacturer': 'Aircraft Manufacturer',
-        'name': 'Aircraft Designation',
-        'engineCount': 'Engine Count',
-        'Fuel Capacity [L]': 'Fuel Capacity [l]',
-        'Mlw [kg]': 'MLW [kg]',
-        'Mtow [kg]': 'MTOW [kg]',
-        'Mtw [kg]': 'MTW [kg]',
-        'Mzfw [kg]': 'MZFW [kg]',
-        'Mmo': 'MMO',
-        'Maximum Operating Altitude [ft]': 'Maximum Operating Altitude [ft]',
-        'Oew [kg]': 'OEW [kg]',
-        'Wing Area [m2]': 'Wing Area [m²]',
-        'Wingspan (Canard) [m]': 'Wingspan (Canard) [m]',
-        'Wingspan (Winglets) [m]': 'Wingspan (winglets) [m]',
-        'Wingspan [m]': 'Wingspan [m]',
-        'Height [m]': 'Height [m]',
-    }
+    df = dataframe.rename_columns_and_set_units(
+        df=df,
+        column_names_and_units=[
+            ("id", "_id_aircraft", str),
+            ("engineModels", "_id_engine", str),
+            ("manufacturer", "Aircraft Manufacturer", str),
+            ("name", "Aircraft Designation", str),
+            ("engineCount", "Engine Count", int),
+        ]
+    )
+    df = dataframe.rename_columns_and_set_units(
+        df=df,
+        column_names_and_units=list_column_names_and_units_properties
+    )
 
-    df = df.rename(columns=dict_column_names)
-    df = df[dict_column_names.values()]
+    df = df[
+        [
+            "_id_aircraft",
+            "_id_engine",
+            "Aircraft Manufacturer",
+            "Aircraft Designation",
+            "Engine Count",
+            "MTOW",
+            "MZFW",
+            "OEW",
+            "Wing Area",
+            "Wingspan (Winglets)",
+            "Wingspan",
+        ]
+    ]
 
     df_grouped = df.groupby(
         by=[
@@ -133,115 +182,113 @@ def read_aircraft_database(
 
 def read_engine_database(
     path_json_engine_database: Path,
-    dict_properties: dict,
     dict_manufacturers: dict,
+    list_column_names_and_units_properties: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
     """
-    Given the path to a JSON file containing the backup of the [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
-    (discontinued as of 01-2024) engine database, a dictionary of property IDs and their names, and a dictionary of manufacturer IDs and their names,
-    returns a DataFrame with the engine models and their properties.
+    Reads a JSON backup of the the entire [aircraft-database.com](https://doi.org/10.5281/zenodo.14382244)
+    `engine-models` table and returns a DataFrame with all engine models and their properties.
 
-    The `propertyValues` column contains a list of dictionaries with the properties and their values.
-    For example, one entry in the `propertyValues` column might look like this:
+    For example, the following JSON object:
 
-    | name | propertyValues |
-    |------|----------------|
-    | foo  | [{'property': 'alpha', 'value': 107.95}, {'property': 'beta', 'value': 'Air'}] |
-    | bar  | [{'property': 'alpha', 'value': 12} |
+    ```
+    {
+        "id":"123abc",
+        "engineFamily":"turbofan",
+        "name":"Engine 444",
+        "propertyValues":[
+            {"property":567def","value":42},
+            {"property":"678fgh","value":12.45},
+        ],
+        (...)
+    },
+    ```
 
-    | name | alpha | beta |
-    |------|-------|------|
-    | foo  | 107.95| Air  |
-    | bar  | 12    | NaN  |
+    will be transformed into a DataFrame of the kind:
 
-    [
-        {'property': '1ecd84bb-a0fc-6e28-8b2d-99154ce73d02', 'value': 107.95},
-        {'property': '1ecd84bf-2ea5-6c86-8b2d-0b9aa407e174', 'value': 'Air'}
-    ]
-    Exploding the `propertyValues` column will create one row per property and value:
-
-    | name    | (...) | propertyValues                                                        |
-    |---------|-------|-----------------------------------------------------------------------|
-    | 110 7DF | (...) | {'property': '1ecd84bb-a0fc-6e28-8b2d-99154ce73d02', 'value': 107.95} |
-    | 110 7DF | (...) | {'property': '1ecd84bf-2ea5-6c86-8b2d-0b9aa407e174', 'value': 'Air'}  |
-
-    Using `pd.json_normalize` will create two columns `property` and `value`:
-
-    | name    | (...) | property                             | value  |
-    |---------|-------|--------------------------------------|--------|
-    | 110 7DF | (...) | 1ecd84bb-a0fc-6e28-8b2d-99154ce73d02 | 107.95 |
-    | 110 7DF | (...) | 1ecd84bf-2ea5-6c86-8b2d-0b9aa407e174 | Air    |
-
-    Using the dictionary of property names, we can map the `property` column to the actual property name:
-
-    | name    | (...) | property       | value  |
-    |---------|-------|----------------|--------|
-    | 110 7DF | (...) | Bore [mm]      | 107.95 |
-    | 110 7DF | (...) | Cooling System | Air    |
-
-    Finally, we can pivot the `property` column to have one column per property:
-
-    | name    | (...) | Bore [mm] | Cooling System |
-    |---------|-------|-----------|----------------|
-    | 110 7DF | (...) | 107.95    | NaN            |
-    | 110 7DF | (...) | NaN       | Air            |
-
-    Which we can group by engine designation (=name) and aggregate the values:
-
-    | name    | (...) | Bore [mm] | Cooling System |
-    |---------|-------|-----------|----------------|
-    | 110 7DF | (...) | 107.95    | Air            |
+    | id     | Name         | Property 1 | Property 2 | (...) |
+    |--------|--------------|------------|------------|-------|
+    | 123abc | Engine 444   | 42         | 12.45      | (...) |
+    
+    See Also
+    --------
+    - [aircraft-database.com (archived)](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
+    - [aircraft-database.com (Zenodo data re-upload)](https://doi.org/10.5281/zenodo.14382244)
 
     Parameters
     ----------
-    path_json_engine_models : Path
-        Path to the JSON file containing the engine models and their properties.
+    path_json_aircraft_models : Path
+        Path to the JSON file containing the aircraft models and their properties.
     dict_properties : dict
         Dictionary mapping the property IDs to their names.
-    dict_manufacturers : dict
-        Dictionary mapping the manufacturer IDs to their names.
+    list_column_names_and_units_properties : list[tuple[str, str, str]]
+        List of tuples with the property id, property name and property unit.
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with the engine models and their properties.
+        DataFrame with the engine models and their properties. Columns are of `pint_pandas` data types.
     """
 
     df = pd.read_json(path_json_engine_database)
-    df = df.loc[df['engineFamily'].isin(['turbofan', 'turbojet', 'turboprop'])]
-
+    # remove turboprop, piston, etc.
+    df = df.loc[df['engineFamily'].isin(['turbofan', 'turbojet'])]
+    # remove entries with tags (e.g. ['military'])
+    df = df[df['tags'].str.len() == 0].drop(columns=['tags'])
+    df = df.reset_index(drop=True)
+    # add manufacturer names
     df['manufacturer'] = df['manufacturer'].map(dict_manufacturers)
 
-    df = df.explode('propertyValues').reset_index(drop=True)
+    """
+    Explode propertyValues. From a dataframe of the kind:
 
-    df_properties = pd.json_normalize(df['propertyValues'])
-    df_properties['property'] = df_properties['property'].map(dict_properties)
+    | id | (...) | propertyValues                                                          |
+    |----|-------|-------------------------------------------------------------------------|
+    | 1  | (...) | [{"property":"345cde","value":42}, {"property":"456def","value":12.45}] |
+    | 2  | (...) | [{"property":"345cde","value":13}, {"property":"456def","value":23.56}] |
 
-    df_properties_pivot = df_properties.pivot(columns='property', values='value')
+    generate a dataframe of the kind:
 
+    | id | (...) | 345cde | 456def |
+    |----|-------|--------|--------|
+    | 1  | (...) | 42     | 12.45  |
+    | 2  | (...) | 13     | 23.56  |
+
+    by generating a Pandas Series of the kind:
+
+    | index | propertyValues                                                        |
+    |-------|-----------------------------------------------------------------------|
+    | 0     | {"property":"345cde","value":42}, {"property":"456def","value":12.45} |
+    | 1     | {"property":"345cde","value":13}, {"property":"456def","value":23.56} |
+
+    and converting it to a DataFrame of the kind:
+
+    | index | 345cde | 456def |
+    |-------|--------|--------|
+    | 0     | 42     | 12.45  |
+    | 1     | 13     | 23.56  |
+    """
+    property_values: pd.Series = df["propertyValues"].apply(
+        lambda x: {item["property"]: item["value"] for item in x}
+    )
+    properties_df = pd.DataFrame(property_values.tolist())
     df = pd.concat(
-        objs=[
-            df,
-            df_properties_pivot
-        ],
+        objs=[df.drop(columns=["propertyValues"]), properties_df],
         axis=1
     )
 
-    dict_column_names = {
-        'id': '_id_engine',
-        'name': 'Engine Designation',
-        'engineFamily': 'Engine Family',
-        'manufacturer': 'Engine Manufacturer',
-        'Bypass Ratio': 'Bypass Ratio',
-        'Overall Pressure Ratio': 'Overall Pressure Ratio',
-        'Dry Weight [kg]': 'Dry Weight [kg]',
-        'Fan Diameter [m]': 'Fan Diameter [m]',
-        'Max. Continuous Power [kW]': 'Max. Continuous Power [kW]',
-        'Max. Continuous Thrust [kN]': 'Max. Continuous Thrust [kN]',
-    }
-
-    df = df.rename(columns=dict_column_names)
-    df = df[dict_column_names.values()]
+    df = dataframe.rename_columns_and_set_units(
+        df=df,
+        column_names_and_units=[
+            ("id", "_id_engine", str),
+            ("name", "Engine Designation", str),
+            ("manufacturer", "Engine Manufacturer", str),
+        ]
+    )
+    df = dataframe.rename_columns_and_set_units(
+        df=df,
+        column_names_and_units=list_column_names_and_units_properties
+    )
 
     df_grouped = df.groupby(
         by='Engine Designation',
@@ -251,97 +298,121 @@ def read_engine_database(
     return df_grouped
 
 
-def read_properties_database(path_json_properties: Path) -> dict:
+def read_properties_database(path_json_properties: str) -> list[tuple[str, str, str]]:
     """
-    Reads a JSON backup of the the [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
-    (discontinued as of 01-2024) table of `properties` and their values and returns a dictionary with the properties and their values.
+    Reads a JSON backup of the the [aircraft-database.com](https://doi.org/10.5281/zenodo.14382244)
+    `properties` table and returns a list of tuples with the property id, property name and property unit.
 
     For instance, the following JSON object:
 
     ```
-    {
-        '1ec882d7-fc13-611c-b99a-5724c0f1cad1': 'Afterburner [None]',
-        '1ed95aff-38d7-6552-9ae8-b35cc598320e': 'Battery Capacity [kilowatt-hour]',
-        '1ed95b07-4149-69c6-9ae8-c3b0ecc17a8d': 'Battery Technology [None]',
+    [
+        {"id":"1ed5603b-a0c8-6728-9bf8-93b7fcdd8f72","name":"Hull volume","type":"integer","unit":"cubic-metre"},
+        {"id":"1ed95aff-38d7-6552-9ae8-b35cc598320e","name":"Battery capacity","type":"float","unit":"kilowatt-hour"},
+        {"id":"1ed95b07-4149-69c6-9ae8-c3b0ecc17a8d","name":"Battery technology","type":"string","unit":null},
         (...)
-    }
+    ]
+    ```
+
+    is transformed into a list of tuples of the kind:
+
+    ```
+    [
+        ("1ed5603b-a0c8-6728-9bf8-93b7fcdd8f72", "Hull Volum", "pint[m ** 3]"),
+        ("1ed95aff-38d7-6552-9ae8-b35cc598320e", "Battery Capacity", "pint[kWh]"),
+        ("1ed95b07-4149-69c6-9ae8-c3b0ecc17a8d", "Battery Technology", None),
+        (...) 
+    ]
     ```
 
     Parameters
     ----------
-    path_json_properties : Path
-        Path to the JSON file containing the properties and their values.
+    path_json_properties : str
+        Path or URL of the JSON file containing the aircraft-database.com `properties` metadata.
 
     Returns
     -------
-    pd.DataFrame
-        _description_
+    list[tuple[str, str, str]]
+        List of tuples with the property id, property name and property unit.
     """
 
     dict_units = {
-        None: 'dimensionless',
-        'kilowatt-hour': 'kWh',
-        'volt': 'V',
-        'millimetre': 'mm',
-        'cubic-centimetre': 'cm³',
-        'kilogram': 'kg',
-        'metre': 'm',
-        'litre': 'L',
-        'horsepower': 'hp',
-        'kilowatt': 'kW',
-        'kilonewton': 'kN',
-        'decanewton-metre': 'daN*m',
-        'foot': 'ft',
-        'knot': 'kn',
-        'cubic-metre': 'm³',
-        'square-metre': 'm²',
+        None: None,
+        'kilowatt-hour': 'pint[kWh]',
+        'volt': 'pint[V]',
+        'millimetre': 'pint[mm]',
+        'cubic-centimetre': 'pint[cm ** 3]',
+        'kilogram': 'pint[kg]',
+        'metre': 'pint[m]',
+        'litre': 'pint[L]',
+        'horsepower': 'pint[hp]',
+        'kilowatt': 'pint[kW]',
+        'kilonewton': 'pint[kN]',
+        'decanewton-metre': 'pint[daN * m]',
+        'foot': 'pint[ft]',
+        'knot': 'pint[kts]',
+        'cubic-metre': 'pint[m ** 3]',
+        'square-metre': 'pint[m ** 2]',
     }
 
-    df_properties = pd.read_json(path_json_properties)
-
-    # capitalize words in name column
-    df_properties['name'] = df_properties['name'].apply(lambda x:x.title()) 
-    # replace unit names with abbreviations
+    df_properties = pd.read_json(path_json_properties)[['id', 'name', 'unit']]
     df_properties['unit'] = df_properties['unit'].map(dict_units)
+    list_column_names_and_units = list(df_properties.itertuples(index=False, name=None))
     
-    df_properties['value'] = df_properties.apply(
-        lambda row: f"{row['name']} [{row['unit']}]"
-        if row['unit'] != 'dimensionless'
-        else row['name'],
-        axis=1
-    )
-    
-    dict_properties = df_properties.set_index('id')['value'].to_dict()
-
-    return dict_properties
+    return list_column_names_and_units
 
 
-def read_manufacturers_database(path_json_manufacturers: Path) -> pd.DataFrame:
-    """_summary_
+def read_manufacturers_database(path_json_manufacturers: Path) -> dict:
+    """
+    Reads a JSON backup of the the [aircraft-database.com](https://doi.org/10.5281/zenodo.14382244)
+    `manufacturers` table and returns a dictionary with the manufacturer id and manufacturer name.
 
-    For instanct, the following JSON object:
+    For instance, the following JSON object:
+
+    ```
+    [
+        {
+            "id": "1edc26ff-b373-6418-bf55-35eb9f006d3f",
+            "country": "MX",
+            "name": "AAMSA",
+            "propertyValues": [],
+            "tags": [],
+            "url": "https://aircraft-database.com/database/manufacturers/aamsa"
+        },
+        {
+            "id": "1ed62800-0b15-6f68-b5ec-05fb44d7d394",
+            "country": "GB",
+            "name": "ABC Motors",
+            "propertyValues": [],
+            "tags": [],
+            "url": "https://aircraft-database.com/database/manufacturers/abc-motors"
+        },
+        (...)
+    ]
+    ```
+
+    is transformed into a dictionary of the kind:
 
     ```
     {
-        '1edc26ff-b373-6418-bf55-35eb9f006d3f': 'AAMSA',
-        '1ed62800-0b15-6f68-b5ec-05fb44d7d394': 'ABC Motors',
-        '1ed62836-1733-6ee0-b5ec-8352ea69874f': 'ADC',
+        "1edc26ff-b373-6418-bf55-35eb9f006d3f": "AAMSA",
+        "1ed62800-0b15-6f68-b5ec-05fb44d7d394": "ABC Motors",
         (...)
     }
     ```
 
     Parameters
     ----------
-    path_json_manufacturers : Path
-        _description_
+    path_json_manufacturers : str
+        Path or URL of the JSON file containing the aircraft-database.com `manufacturers` metadata.
 
     Returns
     -------
-    pd.DataFrame
-        _description_
+    dict
+        Dictionary with manufacturer id as keys and manufacturer name as values.
+        
     """
-    df_manufacturers = pd.read_json(path_json_manufacturers)
-    df_manufacturers = df_manufacturers[['id', 'name']]
+    df_manufacturers = pd.read_json(path_json_manufacturers)[['id', 'name']]
     dict_manufacturers = df_manufacturers.set_index('id')['name'].to_dict()
 
     return dict_manufacturers
@@ -357,44 +428,15 @@ def enrich_aircraft_database(
         dict_properties=read_properties_database(path_json_properties),
         dict_manufacturers=read_manufacturers_database(path_json_manufacturers)
     )
-    return df_aircraft
-
-
-def aggregate_aircraft_database(
-    df_aircraft: pd.DataFrame
-) -> pd.DataFrame:
-    
-    df_aircraft_aggregated = df_aircraft.groupby(
-        [
-            'Aircraft Designation',
-            'Aircraft Manufacturer'
-        ],
-        as_index=False
-    ).agg(
-        {
-            'Wingspan [m]': 'mean',
-            'Wingspan (winglets) [m]' : 'mean',
-            'Wing Area [m²]': 'mean',
-        }
+    df_engines = read_engine_database(
+        path_json_engine_database=path_json_aircraft_database,
+        dict_properties=read_properties_database(path_json_properties),
+        dict_manufacturers=read_manufacturers_database(path_json_manufacturers)
     )
-
-
-    df_aircraft_aggregated['Wingspan'] = df_aircraft_aggregated.apply(
-        lambda row:
-        row['Wingspan (winglets) [m]']
-        if pd.notna(row['Wingspan (winglets) [m]'])
-        else row['Wingspan [m]'],
-        axis=1
+    df_aircraft_enriched = pd.merge(
+        left=df_aircraft,
+        right=df_engines,
+        how='left',
+        on='_id_engine',
     )
-
-    df_aircraft_aggregated = dataframe.rename_columns_and_set_units(
-        df=df_aircraft_aggregated,
-        column_names_and_units=[
-            ("Aircraft Designation", "Aircraft Designation (aircraft-database.com)", str),
-            ("Wingspan [m]", "Wingspan", "pint[m]"),
-            ("Wing Area [m²]", "Wing Area", "pint[m**2]"),
-        ]
-    )
-
-    return df_aircraft_aggregated
-
+    return df_aircraft_enriched

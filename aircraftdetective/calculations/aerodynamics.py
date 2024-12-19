@@ -14,10 +14,7 @@ import pandas as pd
 import numpy as np
 
 
-# %%
-
-
-@unit.check(
+@ureg.check(
     '[length]',
     '[]',
     '[mass]',
@@ -25,7 +22,7 @@ import numpy as np
     '[speed]',
     '[time]/[length]'
 )
-def calculate_lift_to_drag_ratio(
+def compute_lift_to_drag_ratio(
     R: pint.Quantity,
     beta: pint.Quantity,
     MTOW: pint.Quantity,
@@ -69,12 +66,12 @@ def calculate_lift_to_drag_ratio(
     float
         Lift-to-drag ratio ("L/D"), dimensionless
     """
-    g = 9.81 * unit('m/s**2')
+    g = 9.81 * ureg('m/s**2')
     K = R/np.log((MTOW/MZFW)*(1-beta))
     return (K*g*TSFC_cruise)/v_cruise
 
 
-@unit.check(
+@ureg.check(
     '[length]',
     '[area]',
 )
@@ -107,66 +104,27 @@ def compute_aspect_ratio(
 
 # %%
 
-df["L/D"] = df.apply(
-    lambda row: calculate_lift_to_drag_ratio(
-        R=row["Range at Point A"],
-        beta=beta,
-        MTOW=row["MTOW"],
-        MZFW=row["ZFW at Point A"],
-        v_cruise=row["v_cruise"],
-        TSFC_cruise=row["TSFC"]
-    ),
-    axis=1
-)
-df["Aspect Ratio"] = df.apply(
-    lambda row: compute_aspect_ratio(
-        b=row["Wingspan"],
-        S=row["Wing Area"]
-    ),
-    axis=1
-)
+def compute_aerodynamic_efficiency(
+    df: pd.DataFrame,
+    beta: pint.Quantity,
+) -> pd.DataFrame:
 
-
-# %%
-
-df["Range Factor at Point A"] = df.apply(
-    lambda row: calculate_breguet_range_factor_from_payload_range_data(
-        R=row["Range at Point A"],
-        beta=beta,
-        MTOW=row["MTOW"],
-        MZFW=row["ZFW at Point A"]
-    ),
-    axis=1
-)
-
-df["Range Factor at Point B"] = df.apply(
-    lambda row: calculate_breguet_range_factor_from_payload_range_data(
-        R=row["Range at Point B"],
-        beta=beta,
-        MTOW=row["MTOW"],
-        MZFW=row["ZFW at Point B"]
-    ),
-    axis=1
-)
-
-df["Average Range Factor"] = (df["Range Factor at Point A"] + df["Range Factor at Point B"]) / 2
-
-# %%
-
-
-    # Calculate Range Paramer K at point B and C
-    breguet['Factor'] = breguet['Type'].apply(beta)
-    breguet['Ratio 1']= breguet['Factor']*breguet["MTOW\n(Kg)"]/breguet['MZFW_POINT_1\n(Kg)']
-    breguet['Ratio 2']= breguet['Factor']*breguet["MTOW\n(Kg)"]/breguet['MZFW_POINT_2\n(Kg)']
-    breguet['Ratio 1']=breguet['Ratio 1'].apply(np.log)
-    breguet['Ratio 2']=breguet['Ratio 2'].apply(np.log)
-    breguet['K_1']= breguet['RANGE_POINT_1\n(Km)']/breguet['Ratio 1']
-    breguet['K_2']= breguet['RANGE_POINT_2\n(Km)']/breguet['Ratio 2']
-    breguet['K']=(breguet['K_1']+breguet['K_2'])/2
-
-    
-    # Calculate L /D, important only K_1 (Point B) is considered
-    breguet['A'] = breguet['K_1']*g*0.001*breguet['TSFC Cruise']
-    breguet['L/D estimate'] = breguet['A']/flight_vel
-
-
+    df["L/D"] = df.apply(
+        lambda row: compute_lift_to_drag_ratio(
+            R=row["Range at Point A"],
+            beta=beta,
+            MTOW=row["MTOW"],
+            MZFW=row["ZFW at Point A"],
+            v_cruise=row["v_cruise"],
+            TSFC_cruise=row["TSFC"]
+        ),
+        axis=1
+    )
+    df["Aspect Ratio"] = df.apply(
+        lambda row: compute_aspect_ratio(
+            b=row["Wingspan"],
+            S=row["Wing Area"]
+        ),
+        axis=1
+    )
+    return df
