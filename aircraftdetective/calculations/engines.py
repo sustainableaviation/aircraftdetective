@@ -11,8 +11,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
-
 import sys
 import os
 module_path = os.path.abspath("/Users/michaelweinold/github/aircraftdetective")
@@ -22,6 +20,7 @@ if module_path not in sys.path:
 
 from aircraftdetective.utility import plotting
 from aircraftdetective.auxiliary import dataframe
+from aircraftdetective import config
 
 
 def determine_takeoff_to_cruise_tsfc_ratio(
@@ -87,7 +86,7 @@ def scale_engine_data_from_icao_emissions_database(
     path_excel_engine_data_icao_in: str,
     path_excel_engine_data_icao_out: str,
     scaling_polynomial: np.polynomial.Polynomial
-) -> None:
+) -> pd.DataFrame:
     """_summary_
 
     _extended_summary_
@@ -112,6 +111,7 @@ def scale_engine_data_from_icao_emissions_database(
 
     df_engines = dataframe.rename_columns_and_set_units(
         df=df_engines,
+        return_only_renamed_columns=True,
         column_names_and_units=[
             ("Engine Identification", "Engine Identification", str),
             ("Final Test Date", "Final Test Date", 'Int32'),
@@ -119,7 +119,8 @@ def scale_engine_data_from_icao_emissions_database(
             ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
             ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
             ("Rated Thrust (kN)", "Rated Thrust", "pint[kN]")
-        ]
+        ],
+
     )
 
     # calculate TSFC(takeoff) from fuel flow and rated thrust
@@ -216,17 +217,17 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 )
 def compute_overall_engine_efficiency(
     TSFC_cruise: pint.Quantity,
-    cruise_velocity: pint.Quantity,
+    v_cruise: pint.Quantity,
 ) -> pint.Quantity:
     """
-    Given the thrust-specific fuel consumption $TSFC$, the cruise velocity $v_0$, and the fuel heating value $LHV_{fuel}$,
-    returns the overall engine efficiency $\eta_0$.
+    Given the thrust-specific fuel consumption $TSFC$ and the cruise velocity $v_0$,
+    returns the overall engine efficiency $\eta_0$ under the assumption of the fuel heating value $LHV_{fuel}$ of Jet A1 fuel.
 
     Parameters
     ----------
     TSFC : pint.Quantity
         Thrust-specific fuel consumption, in units of [time]/[length]
-    cruise_velocity : pint.Quantity
+    v_cruise : pint.Quantity
         Cruise velocity, in units of [speed]
 
     See Also
@@ -239,7 +240,7 @@ def compute_overall_engine_efficiency(
         Overall engine efficiency, dimensionless
     """
     fuel_heating_value = 44.1 * ureg('MJ/kg') # heating value of Jet A-1 fuel
-    return cruise_velocity / (fuel_heating_value * TSFC_cruise)
+    return v_cruise / (fuel_heating_value * TSFC_cruise)
 
 
 """
@@ -259,3 +260,75 @@ scale_engine_data_from_icao_emissions_database(
     scaling_polynomial=pol2
 )
 """
+
+def compute_engine_metrics(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+
+    df["Engine Efficiency"] = df.apply(
+        lambda row: compute_overall_engine_efficiency(
+            TSFC_cruise=row["TSFC (cruise)"],
+            v_cruise=row["v_cruise"],
+        ),
+        axis=1
+    )
+    return df
+
+
+# %%
+
+def average_engine_data_by_model(
+    df: pd.DataFrame,
+    list_engine_models_to_average: list[str],
+) -> pd.DataFrame:
+    df_matched = df.copy()
+    df_matched['Engine Identification'] = df_matched['Engine Identification'].apply(
+        lambda engine_identification: next(
+                (
+                    engine_pattern for engine_pattern in list_engine_models_to_average
+                    if re.match(engine_pattern, engine_identification)
+                ),
+                None
+            )
+    )
+    df_matched = df_matched.dropna(subset=['Engine Identification'])
+    df_matched = df_matched.groupby(['Engine Identification'], as_index=False).agg('mean')
+    df = pd.concat(
+        objs=[df, df_matched],
+        axis=0
+    ).reset_index(drop=True)
+    return df
+
+
+# %%
+
+import re
+
+df_engines = pd.read_excel(
+    io=config['ICAO']['url_xlsx_engine_emissions_databank'],
+    sheet_name='Gaseous Emissions and Smoke',
+    header=0,
+    converters={'Final Test Date': lambda x: int(pd.to_datetime(x).year)},
+    engine='openpyxl',
+)
+df_engines = dataframe.rename_columns_and_set_units(
+    df=df_engines,
+    return_only_renamed_columns=True,
+    column_names_and_units=[
+        ("Engine Identification", "Engine Identification", str),
+        ("Final Test Date", "Final Test Date", 'Int32'),
+        ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
+        ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
+        ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
+        ("Rated Thrust (kN)", "Rated Thrust", "pint[kN]")
+    ],
+
+)
+
+
+list_engine_models_to_average = ['GEnx-1B.*']
+
+average_engine_data_by_model(
+    df=df_engines,
+    list_engine_models_to_average=list_engine_models_to_average
+)

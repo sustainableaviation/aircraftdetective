@@ -1,7 +1,12 @@
+[aircraft_database_com]
 url_json_aircraft_types = "https://zenodo.org/records/14524630/files/aircraft-types.json?download=1"
 url_json_engine_models = "https://zenodo.org/records/14524630/files/engine-models.json?download=1"
 url_json_manufacturers = "https://zenodo.org/records/14524630/files/manufacturers.json?download=1"
 url_json_properties = "https://zenodo.org/records/14524630/files/properties.json?download=1"
+
+[ICAO]
 url_xlsx_engine_emissions_databank = "https://www.easa.europa.eu/en/downloads/131424/en"
-url_xlsxl_aircraft_database = "/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Aircraft Database.xlsx"
+
+[aircraft_detective]
+url_xlsx_aircraft_database = "/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Aircraft Database.xlsx"
 url_xlsx_engine_tsfc_database = "/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Engine Database (TSFC Data).xlsx"

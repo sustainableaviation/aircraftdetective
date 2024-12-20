@@ -2,11 +2,9 @@
 from pathlib import Path
 
 import pandas as pd
-
 import pint
-ureg = pint.get_application_registry()
+ureg = pint.get_application_registry() # https://pint-pandas.readthedocs.io/en/latest/user/common.html#using-a-shared-unit-registry
 import pint_pandas
-
 
 import sys
 import os
@@ -20,8 +18,8 @@ from aircraftdetective import config
 # %%
 
 
-def read_aircraft_database(
-    path_json_aircraft_database: Path,
+def read_aircraft_database_com(
+    path_json_database_table: Path,
     dict_manufacturers: dict,
     list_column_names_and_units_properties: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
@@ -75,7 +73,7 @@ def read_aircraft_database(
         DataFrame with the aircraft models and their properties. Columns are of `pint_pandas` data types.
     """
 
-    df = pd.read_json(path_json_aircraft_database)
+    df = pd.read_json(path_json_database_table)
 
     # remove helicopters, amphibious, etc.
     df = df.loc[df['aircraftFamily'].isin(['airplane'])]
@@ -98,45 +96,24 @@ def read_aircraft_database(
     | 1  | (...) | alpha        |
     | 1  | (...) | beta         |
     """
-    df = df.explode('engineModels').reset_index(drop=True)
+    if 'engineModels' in df.columns:
+        df = df.explode('engineModels').reset_index(drop=True)
     
+
     """
-    Explode propertyValues. From a dataframe of the kind:
+    Explode property values. From a DataFrame of the kind:
 
     | id | (...) | propertyValues                                                          |
     |----|-------|-------------------------------------------------------------------------|
     | 1  | (...) | [{"property":"345cde","value":42}, {"property":"456def","value":12.45}] |
-    | 2  | (...) | [{"property":"345cde","value":13}, {"property":"456def","value":23.56}] |
 
-    generate a dataframe of the kind:
+    generate a DataFrame of the kind:
 
     | id | (...) | 345cde | 456def |
     |----|-------|--------|--------|
     | 1  | (...) | 42     | 12.45  |
-    | 2  | (...) | 13     | 23.56  |
-
-    by generating a Pandas Series of the kind:
-
-    | index | propertyValues                                                        |
-    |-------|-----------------------------------------------------------------------|
-    | 0     | {"property":"345cde","value":42}, {"property":"456def","value":12.45} |
-    | 1     | {"property":"345cde","value":13}, {"property":"456def","value":23.56} |
-
-    and converting it to a DataFrame of the kind:
-
-    | index | 345cde | 456def |
-    |-------|--------|--------|
-    | 0     | 42     | 12.45  |
-    | 1     | 13     | 23.56  |
     """
-    property_values: pd.Series = df["propertyValues"].apply(
-        lambda x: {item["property"]: item["value"] for item in x}
-    )
-    properties_df = pd.DataFrame(property_values.tolist())
-    df = pd.concat(
-        objs=[df.drop(columns=["propertyValues"]), properties_df],
-        axis=1
-    )
+    df = dataframe.explode_column_with_list_elements(df=df)
 
     df = dataframe.rename_columns_and_set_units(
         df=df,
@@ -180,8 +157,8 @@ def read_aircraft_database(
     return df_grouped
 
 
-def read_engine_database(
-    path_json_engine_database: Path,
+def read_engine_database_com(
+    path_json_database_table: Path,
     dict_manufacturers: dict,
     list_column_names_and_units_properties: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
@@ -230,7 +207,8 @@ def read_engine_database(
         DataFrame with the engine models and their properties. Columns are of `pint_pandas` data types.
     """
 
-    df = pd.read_json(path_json_engine_database)
+    df = pd.read_json(path_json_database_table)
+
     # remove turboprop, piston, etc.
     df = df.loc[df['engineFamily'].isin(['turbofan', 'turbojet'])]
     # remove entries with tags (e.g. ['military'])
@@ -239,43 +217,21 @@ def read_engine_database(
     # add manufacturer names
     df['manufacturer'] = df['manufacturer'].map(dict_manufacturers)
 
+
     """
-    Explode propertyValues. From a dataframe of the kind:
+    Explode property values. From a DataFrame of the kind:
 
     | id | (...) | propertyValues                                                          |
     |----|-------|-------------------------------------------------------------------------|
     | 1  | (...) | [{"property":"345cde","value":42}, {"property":"456def","value":12.45}] |
-    | 2  | (...) | [{"property":"345cde","value":13}, {"property":"456def","value":23.56}] |
 
-    generate a dataframe of the kind:
+    generate a DataFrame of the kind:
 
     | id | (...) | 345cde | 456def |
     |----|-------|--------|--------|
     | 1  | (...) | 42     | 12.45  |
-    | 2  | (...) | 13     | 23.56  |
-
-    by generating a Pandas Series of the kind:
-
-    | index | propertyValues                                                        |
-    |-------|-----------------------------------------------------------------------|
-    | 0     | {"property":"345cde","value":42}, {"property":"456def","value":12.45} |
-    | 1     | {"property":"345cde","value":13}, {"property":"456def","value":23.56} |
-
-    and converting it to a DataFrame of the kind:
-
-    | index | 345cde | 456def |
-    |-------|--------|--------|
-    | 0     | 42     | 12.45  |
-    | 1     | 13     | 23.56  |
     """
-    property_values: pd.Series = df["propertyValues"].apply(
-        lambda x: {item["property"]: item["value"] for item in x}
-    )
-    properties_df = pd.DataFrame(property_values.tolist())
-    df = pd.concat(
-        objs=[df.drop(columns=["propertyValues"]), properties_df],
-        axis=1
-    )
+    df = dataframe.explode_column_with_list_elements(df=df)
 
     df = dataframe.rename_columns_and_set_units(
         df=df,
@@ -418,19 +374,23 @@ def read_manufacturers_database(path_json_manufacturers: Path) -> dict:
     return dict_manufacturers
 
 
+# %%
+
+
 def enrich_aircraft_database(
     path_json_aircraft_database: str,
+    path_json_engine_database: str,
     path_json_properties: str,
     path_json_manufacturers: str
 ) -> pd.DataFrame:
-    df_aircraft = read_aircraft_database(
-        path_json_aircraft_database=path_json_aircraft_database,
-        dict_properties=read_properties_database(path_json_properties),
+    df_aircraft = read_aircraft_database_com(
+        path_json_database_table=path_json_aircraft_database,
+        list_column_names_and_units_properties=read_properties_database(path_json_properties),
         dict_manufacturers=read_manufacturers_database(path_json_manufacturers)
     )
-    df_engines = read_engine_database(
-        path_json_engine_database=path_json_aircraft_database,
-        dict_properties=read_properties_database(path_json_properties),
+    df_engines = read_engine_database_com(
+        path_json_database_table=path_json_engine_database,
+        list_column_names_and_units_properties=read_properties_database(path_json_properties),
         dict_manufacturers=read_manufacturers_database(path_json_manufacturers)
     )
     df_aircraft_enriched = pd.merge(

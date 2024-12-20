@@ -102,9 +102,7 @@ def compute_aspect_ratio(
     return (b**2)/S
 
 
-# %%
-
-def compute_aerodynamic_efficiency(
+def compute_aerodynamic_metrics(
     df: pd.DataFrame,
     beta: pint.Quantity,
 ) -> pd.DataFrame:
