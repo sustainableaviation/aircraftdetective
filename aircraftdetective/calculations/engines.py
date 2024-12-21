@@ -277,15 +277,83 @@ def compute_engine_metrics(
 
 # %%
 
+def get_engine_designations_with_wildcard(
+    df: pd.DataFrame
+) -> set[str]:
+    """
+    Given a dataframe of aircraft data, returns a set of engine designations which contain a wildcard.
+
+    For example, given a DataFrame of the kind:
+
+    | Engine Designation | (...) |
+    |--------------------|-------|
+    | GEnx-1B.*          | (...) |
+    | CFM56-7B24         | (...) |
+
+    the function returns the set:
+
+    `{GEnx-1B.*}`
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Aircraft data, including column 'Engine Designation'
+
+    Returns
+    -------
+    set[str]
+        Set of (unique) engine designations with wildcards
+    """
+    return set(df_aircraft[df_aircraft['Engine Designation'].str.endswith(".*", na=False)]['Engine Designation'])
+
+
 def average_engine_data_by_model(
     df: pd.DataFrame,
-    list_engine_models_to_average: list[str],
+    engine_models_to_average: list[str],
 ) -> pd.DataFrame:
+    """
+    Given a DataFrame of engine data and a list of engine models to average,
+    returns a DataFrame with the average data for the engine models appended.
+
+    For example, given an iterable of engines to average,
+    correctly formatted with regex wildcards (note: `.*` instead of just `*`):
+
+    `{GEnx-1B.*}`
+
+    and a DataFrame of the kind:
+
+    | Engine Identification | (...) | Rated Thrust      |
+    |-----------------------|-------|-------------------|
+    | 'GEnx-1B54'           | (...) | 255.3             |
+    | 'GEnx-1B58'           | (...) | 271.3             |
+    | 'GEnx-1B64'           | (...) | 298               |
+
+    the function returns a DataFrame of the kind:
+
+    | Engine Identification | (...) | Rated Thrust      |
+    |-----------------------|-------|-------------------|
+    | 'GEnx-1B54'           | (...) | 255.3             |
+    | 'GEnx-1B58'           | (...) | 271.3             |
+    | 'GEnx-1B64'           | (...) | 298               |
+    | 'GEnx-1B*'            | (...) | 274.87            |
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Engine data, including column 'Engine Identification'
+    engine_models_to_average : list[str]
+        Iterable of engine models to average, correctly formatted with regex wildcards
+
+    Returns
+    -------
+    pd.DataFrame
+        Engine data with averaged values for the engine models in the list
+    """
     df_matched = df.copy()
     df_matched['Engine Identification'] = df_matched['Engine Identification'].apply(
         lambda engine_identification: next(
                 (
-                    engine_pattern for engine_pattern in list_engine_models_to_average
+                    engine_pattern for engine_pattern in engine_models_to_average
                     if re.match(engine_pattern, engine_identification)
                 ),
                 None
@@ -326,9 +394,21 @@ df_engines = dataframe.rename_columns_and_set_units(
 )
 
 
-list_engine_models_to_average = ['GEnx-1B.*']
 
 average_engine_data_by_model(
     df=df_engines,
-    list_engine_models_to_average=list_engine_models_to_average
+    list_engine_models_to_average=engine_wildcard
 )
+
+# %%
+
+df_aircraft = pd.read_excel(
+    io=config['aircraft_detective']['url_xlsx_aircraft_database'],
+    sheet_name='Data',
+    header=[0, 1],
+    engine='openpyxl',
+)
+df_aircraft = df_aircraft.pint.quantify(level=1)
+
+engine_wildcard = get_engine_designations_with_wildcard(df_aircraft)
+
