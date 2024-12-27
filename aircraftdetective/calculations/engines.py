@@ -1,22 +1,12 @@
-# %%
-
 import pint
 import pint_pandas
 ureg = pint.get_application_registry()
 
-
-from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-import sys
-import os
-module_path = os.path.abspath("/Users/michaelweinold/github/aircraftdetective")
-if module_path not in sys.path:
-    sys.path.append(module_path)
-
+import re
 
 from aircraftdetective.utility import plotting
 from aircraftdetective.auxiliary import dataframe
@@ -116,6 +106,9 @@ def scale_engine_data_from_icao_emissions_database(
             ("Engine Identification", "Engine Identification", str),
             ("Final Test Date", "Final Test Date", 'Int32'),
             ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
+            ("Fuel Flow C/O (kg/sec)", "Fuel Flow C/O", "pint[kg/s]"),
+            ("Fuel Flow App (kg/sec)", "Fuel Flow App", "pint[kg/s]"),
+            ("Fuel Flow Idle (kg/sec)", "Fuel Flow Idle", "pint[kg/s]"),
             ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
             ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
             ("Rated Thrust (kN)", "Rated Thrust", "pint[kN]")
@@ -129,6 +122,11 @@ def scale_engine_data_from_icao_emissions_database(
     df_engines['TSFC(cruise)'] = df_engines['TSFC(takeoff)'].apply(lambda x: scaling_polynomial(x))
     # re-set units, because the apply function does not keep the pint units
     df_engines['TSFC(cruise)'] = df_engines['TSFC(cruise)'].astype(df_engines['TSFC(takeoff)'].dtype)
+
+    dataframe.export_typed_dataframe_to_excel(
+        df=df_engines,
+        path=path_excel_engine_data_icao_out
+    )
 
     return df_engines
 
@@ -209,7 +207,6 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
     fig.show()
 
-# %%
 
 @ureg.check(
     '[time]/[length]',
@@ -243,24 +240,6 @@ def compute_overall_engine_efficiency(
     return v_cruise / (fuel_heating_value * TSFC_cruise)
 
 
-"""
-# %%
-
-df_engines, pol1, pol2, _, _ = determine_takeoff_to_cruise_tsfc_ratio(path_excel_engine_data_for_calibration='/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Engine Database (TSFC Data).xlsx')
-
-plot_takeoff_to_cruise_tsfc_ratio(
-    df_engines=df_engines,
-    linear_fit=pol1,
-    polynomial_fit=pol2
-)
-
-scale_engine_data_from_icao_emissions_database(
-    path_excel_engine_data_icao_in='https://www.easa.europa.eu/en/downloads/131424/en',
-    path_excel_engine_data_icao_out='Scaled.xlsx',
-    scaling_polynomial=pol2
-)
-"""
-
 def compute_engine_metrics(
     df: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -275,11 +254,7 @@ def compute_engine_metrics(
     return df
 
 
-# %%
-
-def get_engine_designations_with_wildcard(
-    df: pd.DataFrame
-) -> set[str]:
+def get_engine_designations_with_wildcard(df: pd.DataFrame) -> set[str]:
     """
     Given a dataframe of aircraft data, returns a set of engine designations which contain a wildcard.
 
@@ -304,7 +279,7 @@ def get_engine_designations_with_wildcard(
     set[str]
         Set of (unique) engine designations with wildcards
     """
-    return set(df_aircraft[df_aircraft['Engine Designation'].str.endswith(".*", na=False)]['Engine Designation'])
+    return set(df[df['Engine Designation'].str.endswith(".*", na=False)]['Engine Designation'])
 
 
 def average_engine_data_by_model(
@@ -366,49 +341,3 @@ def average_engine_data_by_model(
         axis=0
     ).reset_index(drop=True)
     return df
-
-
-# %%
-
-import re
-
-df_engines = pd.read_excel(
-    io=config['ICAO']['url_xlsx_engine_emissions_databank'],
-    sheet_name='Gaseous Emissions and Smoke',
-    header=0,
-    converters={'Final Test Date': lambda x: int(pd.to_datetime(x).year)},
-    engine='openpyxl',
-)
-df_engines = dataframe.rename_columns_and_set_units(
-    df=df_engines,
-    return_only_renamed_columns=True,
-    column_names_and_units=[
-        ("Engine Identification", "Engine Identification", str),
-        ("Final Test Date", "Final Test Date", 'Int32'),
-        ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
-        ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
-        ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
-        ("Rated Thrust (kN)", "Rated Thrust", "pint[kN]")
-    ],
-
-)
-
-
-
-average_engine_data_by_model(
-    df=df_engines,
-    list_engine_models_to_average=engine_wildcard
-)
-
-# %%
-
-df_aircraft = pd.read_excel(
-    io=config['aircraft_detective']['url_xlsx_aircraft_database'],
-    sheet_name='Data',
-    header=[0, 1],
-    engine='openpyxl',
-)
-df_aircraft = df_aircraft.pint.quantify(level=1)
-
-engine_wildcard = get_engine_designations_with_wildcard(df_aircraft)
-
