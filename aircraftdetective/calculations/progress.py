@@ -15,45 +15,64 @@ def normalize_aircraft_efficiency_metrics(
     Converts aircraft efficiency metrics into "% improvement over the earliest aircraft in the dataset"
     """
 
-    row_baseline_aircraft_wide = df[df['Aircraft Designation'] == baseline_aircraft_designation_wide]
-    row_baseline_aircraft_narrow = df[df['Aircraft Designation'] == baseline_aircraft_designation_narrow]
+    row_baseline_aircraft_wide: pd.DataFrame = df[df['Aircraft Designation'] == baseline_aircraft_designation_wide]
+    row_baseline_aircraft_narrow: pd.DataFrame = df[df['Aircraft Designation'] == baseline_aircraft_designation_narrow]
     
-    eu_baseline = row_baseline_aircraft_wide['Fuel/Available Seat Distance'].values[0]
+    eu_baseline = row_baseline_aircraft_wide['Energy Use'].values[0]
     tsfc_baseline = row_baseline_aircraft_wide['TSFC (cruise)'].values[0]
     ld_baseline = row_baseline_aircraft_wide['L/D'].values[0]
-    mtow_baseline_wide = row_baseline_aircraft_wide['MTOW'].values[0]
-    mtow_baseline_narrow = row_baseline_aircraft_narrow['MTOW'].values[0]
+    struct_baseline_wide = row_baseline_aircraft_wide['Structural Efficiency'].values[0]
+    struct_baseline_narrow = row_baseline_aircraft_narrow['Structural Efficiency'].values[0]
 
-    df['Energy Use (relative)'] = 100 * (eu_baseline - df['Fuel/Available Seat Distance']) / eu_baseline
+    df['Energy Use (relative)'] = 100 * (eu_baseline - df['Energy Use']) / eu_baseline
     df['Engine Efficiency (relative)'] = 100 * (tsfc_baseline - df['TSFC (cruise)']) / tsfc_baseline
-    df['Aerodynamic Efficiency (relative)'] = 100 * (ld_baseline - df['L/D']) / ld_baseline
-    df['Structural Efficiency'] = df['MTOW'] / df['Pax Exit Limit']
-    df['Structural Efficiency (relative)'] = 100 * (mtow_baseline_wide - df[df['Type'] == 'Wide']['Structural Efficiency']) / mtow_baseline_wide
-    df['Structural Efficiency (relative)'] = 100 * (mtow_baseline_narrow - df[df['Type'] == 'Narrow']['Structural Efficiency']) / mtow_baseline_narrow
+    df['Aerodynamic Efficiency (relative)'] = 100 * (df['L/D'] - ld_baseline) / ld_baseline
 
+    df['struct_eff_rel_wide'] = 100 * (struct_baseline_wide - df[df['Type'] == 'Wide']['Structural Efficiency']) / struct_baseline_wide
+    df['struct_eff_rel_narrow'] = 100 * (struct_baseline_narrow - df[df['Type'] == 'Narrow']['Structural Efficiency']) / struct_baseline_narrow
+    df['Structural Efficiency (relative)'] = df['struct_eff_rel_wide'].combine_first(df['struct_eff_rel_narrow'])
+    df = df.drop(columns=['struct_eff_rel_wide', 'struct_eff_rel_narrow'])
+
+    return df
+
+
+def determine_polynomial_fit(
+    df: pd.DataFrame,
+    column: str,
+    degree: int,
+) -> np.polynomial.Polynomial:
     """
-    polynomial_energy_use = np.polynomial.Polynomial.fit(
-        x=df['YOI'],
-        y=df['Energy Use (relative)'],
-        deg=4,
-    )
-    polynomial_engine_efficiency = np.polynomial.Polynomial.fit(
-        x=df['YOI'],
-        y=df['Engine Efficiency (relative)'],
-        deg=4,
-    )
-    polynomial_aerodynamic_efficiency = np.polynomial.Polynomial.fit(
-        x=df['YOI'],
-        y=df['Aerodynamic Efficiency (relative)'],
-        deg=4,
-    )
-    polynomial_structural_efficiency = np.polynomial.Polynomial.fit(
-        x=df['YOI'],
-        y=df['Structural Efficiency (relative)'],
-        deg=4,
-    )
+    Given a DataFrame with Pint unit columns, a column name, and a polynomial degree, return a polynomial fit of the data in the column.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with Pint unit columns
+    column : str
+        Name of the column to fit
+    degree : int
+        Degree of the polynomial fit
+
+    See Also
+    --------
+    - [`np.polynomial.Polynomial.fit`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.fit.html#numpy-polynomial-polynomial-polynomial-fit)
+
+    Returns
+    -------
+    np.polynomial.Polynomial
+        Polynomial fit of the data in the column
     """
-    return df #, polynomial_energy_use, polynomial_engine_efficiency, polynomial_aerodynamic_efficiency, polynomial_structural_efficiency
+    
+    df = df.dropna(subset=[column])
+    df = df.sort_values(by='YOI', ascending=True)
+
+    polynomial = np.polynomial.Polynomial.fit(
+        x=df['YOI'],
+        y=df[column].values.numpy_data, # polynomial.fit() requires a numpy array, not a typed (=Pint) Pandas series
+        deg=degree,
+    )
+
+    return polynomial
 
 
 def compute_log_mean_divisia_index(

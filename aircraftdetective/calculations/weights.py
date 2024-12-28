@@ -11,4 +11,5 @@ def compute_weight_metrics(
     df['OEW/Pax Exit Limit'] = df['OEW'] / df['Pax Exit Limit']
     df['OEW/Pax'] = df['OEW'] / df['Average Pax']
     df['OEW/MTOW'] = df['OEW'] / df['MTOW']
+    df['Structural Efficiency'] = df['OEW'] / df['Pax Exit Limit']
     return df

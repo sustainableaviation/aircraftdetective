@@ -1,5 +1,6 @@
 # %%
 
+import numpy as np
 import pandas as pd
 import pint
 import pint_pandas
@@ -23,8 +24,6 @@ from aircraftdetective.calculations import engines
 from aircraftdetective.calculations import overall
 from aircraftdetective.processing import statistics
 from aircraftdetective.calculations import progress
-
-# %%
 
 
 df_aircraft = pd.read_excel(
@@ -72,7 +71,6 @@ df_aircraft_enriched = aerodynamics.compute_aerodynamic_metrics(df=df_aircraft_e
 df_aircraft_enriched = engines.compute_engine_metrics(df=df_aircraft_enriched)
 df_aircraft_enriched = overall.compute_overall_metrics(df=df_aircraft_enriched)
 
-# %%
 
 df_aircraft_literature = pd.read_excel(
     io=config['aircraft_detective']['url_xlsx_aircraft_database'],
@@ -82,8 +80,8 @@ df_aircraft_literature = pd.read_excel(
 )
 df_aircraft_literature = df_aircraft_literature.pint.quantify(level=1)
 
-list_columns=['Energy Use', 'L/D', 'TSFC (cruise)']
-merge_column='Aircraft Designation'
+list_columns=['Energy Use', 'L/D', 'TSFC (cruise)', 'OEW/MTOW']
+merge_column='Aircraft Designation (Literature)'
 
 df_updated = pd.merge(
     left=df_aircraft_enriched,
@@ -93,59 +91,91 @@ df_updated = pd.merge(
     suffixes=('', '_update')
 )
 
-df_updated["Energy Use"].combine_first(df_updated["Energy Use_update"])
-
-df_updated["TSFC (cruise)"].combine_first(df_updated["TSFC (cruise)_update"])
-
-df_updated_form = dataframe.update_column_data(
+df_updated = dataframe.update_column_data(
     df_main=df_aircraft_enriched,
     df_other=df_aircraft_literature,
-    merge_column='Aircraft Designation',
+    merge_column='Aircraft Designation (Literature)',
     list_columns=list_columns,
 )
 
-
-# %%
-
-list_columns=['Energy Use', 'L/D', 'TSFC (cruise)']
-
-df_aircraft_enriched = df_aircraft_enriched.set_index('Aircraft Designation')
-df_aircraft_literature = df_aircraft_literature.set_index('Aircraft Designation')
-
-# %%
-
-df_aircraft_enriched.combine(
-    other=df_aircraft_literature[list_columns],
-    func=lambda x, y: x if pd.isna(y) else y,
-    overwrite=False,
-)
-
-
-# %%
-
 df_progress = progress.normalize_aircraft_efficiency_metrics(
-    df=df_aircraft_enriched,
+    df=df_updated,
     baseline_aircraft_designation_wide='B707-120',
     baseline_aircraft_designation_narrow='B737-200C',
 )
-# %%
-
-df = df_aircraft_enriched
-
-row_baseline_aircraft_wide = df[df['Aircraft Designation'] == 'B707-120']
-row_baseline_aircraft_narrow = df[df['Aircraft Designation'] == 'B737-200C']
-    
-eu_baseline = row_baseline_aircraft_wide['Fuel/Available Seat Distance'].values[0]
-tsfc_baseline = row_baseline_aircraft_wide['TSFC (cruise)'].values[0]
-ld_baseline = row_baseline_aircraft_wide['L/D'].values[0]
-mtow_baseline_wide = row_baseline_aircraft_wide['MTOW'].values[0]
-mtow_baseline_narrow = row_baseline_aircraft_narrow['MTOW'].values[0]
 
 # %%
 
-df['Energy Use (relative)'] = 100 * (eu_baseline - df['Fuel/Available Seat Distance']) / eu_baseline
-df['Engine Efficiency (relative)'] = 100 * (tsfc_baseline - df['TSFC (cruise)']) / tsfc_baseline
-df['Aerodynamic Efficiency (relative)'] = 100 * (ld_baseline - df['L/D']) / ld_baseline
-df['Structural Efficiency'] = df['MTOW'] / df['Pax Exit Limit']
-df['Structural Efficiency (relative)'] = 100 * (mtow_baseline_wide - df[df['Type'] == 'Wide']['Structural Efficiency']) / mtow_baseline_wide
-df['Structural Efficiency (relative)'] = 100 * (mtow_baseline_narrow - df[df['Type'] == 'Narrow']['Structural Efficiency']) / mtow_baseline_narrow
+pol = progress.determine_polynomial_fit(
+    df=df_progress,
+    column='Engine Efficiency (relative)',
+    degree=4,
+)
+
+import matplotlib.pyplot as plt
+# Generate x values for plotting the polynomial
+x_values = np.linspace(df_progress['YOI'].min(), df_progress['YOI'].max(), 500)
+y_values = pol(x_values)
+
+# Plot the polynomial
+plt.plot(x_values, y_values, color='green', linestyle='--', label='Energy Use (polynomial fit)')
+plt.legend(loc='upper left')
+
+
+# %%
+
+# plotting
+import matplotlib.pyplot as plt
+# unit conversion
+cm = 1/2.54 # for inches-cm conversion
+# time manipulation
+from datetime import datetime
+# data science
+import numpy as np
+import pandas as pd
+
+fig, ax = plt.subplots(
+    num = 'main',
+    nrows = 1,
+    ncols = 1,
+    dpi = 300,
+    figsize=(20*cm, 10*cm), # A4=(210x297)mm,
+)
+
+ax.set_xlim(1950, 2030)
+ax.set_ylim(-30,150)
+
+plt.scatter(
+    df_progress['YOI'],
+    df_progress['Engine Efficiency (relative)'],
+    color = 'black',
+    marker = 'o',
+)
+plt.scatter(
+    df_progress['YOI'],
+    df_progress['Aerodynamic Efficiency (relative)'],
+    color = 'blue',
+    marker = 'o',
+)
+plt.scatter(
+    df_progress['YOI'],
+    df_progress['Structural Efficiency (relative)'],
+    color = 'red',
+    marker = 'o',
+)
+plt.scatter(
+    df_progress['YOI'],
+    df_progress['Energy Use (relative)'],
+    color = 'green',
+    marker = 'o',
+)
+
+plt.legend(
+    [
+        'Engine Efficiency',
+        'Aerodynamic Efficiency',
+        'Structural Efficiency',
+        'Energy Use',
+    ],
+    loc='upper left',
+)
