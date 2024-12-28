@@ -1,13 +1,13 @@
-# %%
-
-from pathlib import Path
-import pandas as pd
+import pint
 import pint_pandas
+ureg = pint.get_application_registry()
+
+import pandas as pd
 
 
 def process_data_usdot_t2(
-    path_csv_t2: Path,
-    path_csv_aircraft_types: Path,
+    path_csv_t2: str,
+    path_csv_aircraft_types: str,
 ) -> pd.DataFrame:
     """_summary_
 

@@ -10,3 +10,7 @@ url_xlsx_engine_emissions_databank = "https://www.easa.europa.eu/en/downloads/13
 [aircraft_detective]
 url_xlsx_aircraft_database = "/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Aircraft Database.xlsx"
 url_xlsx_engine_tsfc_database = "/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Engine Database (TSFC Data).xlsx"
+
+[US_DOT]
+url_csv_schedule_t2 = "/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/USDOT/T_SCHEDULE_T2.csv"
+url_csv_aircraft_types =  "/Users/michaelweinold/github/Aircraft-Performance/database/rawdata/USDOT/L_AIRCRAFT_TYPE (1).csv"

@@ -15,7 +15,7 @@ from aircraftdetective import config
 
 # %%
 
-pol1, pol2, _, _ = engines.determine_takeoff_to_cruise_tsfc_ratio(
+df_engines_tsfc, pol1, pol2, _, _ = engines.determine_takeoff_to_cruise_tsfc_ratio(
     path_excel_engine_data_for_calibration=config['aircraft_detective']['url_xlsx_engine_tsfc_database']
 )
 
@@ -47,3 +47,9 @@ df_merged = pd.merge(
     left_on='Engine Designation',
     right_on='Engine Identification',
 )
+
+df_merged = engines.compute_engine_metrics(
+    df=df_merged
+)
+
+# %%

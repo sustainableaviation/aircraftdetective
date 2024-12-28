@@ -189,41 +189,58 @@ def explode_column_with_list_elements(
 
     return df
 
-import re
-def average_engine_model_data(
-    df: pd.DataFrame,
-    list_engine_models_to_average: list[str],
-    list_columns_to_average: list[str],
+
+def update_column_data(
+    df_main: pd.DataFrame,
+    df_other: pd.DataFrame,
+    merge_column: str,
+    list_columns: list[str],
 ) -> pd.DataFrame:
-    """
+    """_summary_
 
     _extended_summary_
 
-    For example, given a list of engines to average:
+    Given a first DataFrame of the kind:
 
-    ['GEnx-1B.*']
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) |               |
+    | B737-200C            | (...) | 0.5           |
+    | A380-800             | (...) |               |
 
-    and a DataFrame of the kind:
+    and a second DataFrame of the kind:
 
-    | Engine Identification | (...) | Rated Thrust      |
-    |-----------------------|-------|-------------------|
-    | 'GEnx-1B54'           | (...) | 255.3             |
-    | 'GEnx-1B58'           | (...) | 271.3             |
-    | 'GEnx-1B64'           | (...) | 298               |
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) | 0.6           |
+    | A380-800             | (...) | 0.7           |
 
-    The function returns a DataFrame of the kind:
+    and a list of columns to update:
 
-    | Engine Identification | (...) | Rated Thrust      |
-    |-----------------------|-------|-------------------|
-    | 'GEnx-1B*'            | (...) | 274.87            |
+    list_columns = ['TSFC (cruise)']
 
+    and a merge column:
+
+    merge_column = 'Aircraft Designation'
+
+    the function will update the first DataFrame with the values from the second DataFrame:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) | 0.6           |
+    | B737-200C            | (...) | 0.5           |
+    | A380-800             | (...) | 0.7           |
 
 
     Parameters
     ----------
-    df : pd.DataFrame
+    df_main : pd.DataFrame
         _description_
-    list_engine_models_to_average : list[str]
+    df_other : pd.DataFrame
+        _description_
+    merge_column : str
+        _description_
+    list_columns : list[str]
         _description_
 
     Returns
@@ -231,8 +248,17 @@ def average_engine_model_data(
     pd.DataFrame
         _description_
     """
-
-    df['Engine Identification'] = df['Engine Identification'].apply(
-        lambda engine_identification: next((engine_pattern for engine_pattern in list_engine_models_to_average if re.match(engine_pattern, engine_identification)), None)
+    df_main_updated = pd.merge(
+        left=df_main,
+        right=df_other[list_columns + [merge_column]],
+        on=merge_column,
+        how='left',
+        suffixes=('', '_update')
     )
-    df = df.dropna(subset=['Engine Identification'])
+
+    for col in list_columns:
+        df_main_updated[col] = df_main_updated[col].combine_first(df_main_updated[f"{col}_update"])
+
+    df_main_updated = df_main_updated.drop(columns=[f"{col}_update" for col in list_columns])
+
+    return df_main_updated

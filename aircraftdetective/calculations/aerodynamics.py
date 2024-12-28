@@ -68,7 +68,8 @@ def compute_lift_to_drag_ratio(
     """
     g = 9.81 * ureg('m/s**2')
     K = R/np.log((MTOW/MZFW)*(1-beta))
-    return (K*g*TSFC_cruise)/v_cruise
+    ld = (K*g*TSFC_cruise)/v_cruise
+    return ld.to_base_units()
 
 
 @ureg.check(
@@ -104,25 +105,27 @@ def compute_aspect_ratio(
 
 def compute_aerodynamic_metrics(
     df: pd.DataFrame,
-    beta: pint.Quantity,
 ) -> pd.DataFrame:
+    
+    beta_widebody = 0.04
+    beta_narrowbody = 0.06
 
     df["L/D"] = df.apply(
         lambda row: compute_lift_to_drag_ratio(
-            R=row["Range at Point A"],
-            beta=beta,
-            MTOW=row["MTOW"],
-            MZFW=row["ZFW at Point A"],
-            v_cruise=row["v_cruise"],
-            TSFC_cruise=row["TSFC"]
+            R=row["Payload/Range: Range at Point A"],
+            beta=beta_widebody if row["Type"] == "Wide" else beta_narrowbody,
+            MTOW=row["Payload/Range: MTOW"],
+            MZFW=row["Payload/Range: ZFW at Point A"],
+            v_cruise=row["Cruise Speed"],
+            TSFC_cruise=row["TSFC (cruise)"]
         ),
         axis=1
-    )
+    ).pint.convert_object_dtype()
     df["Aspect Ratio"] = df.apply(
         lambda row: compute_aspect_ratio(
             b=row["Wingspan"],
             S=row["Wing Area"]
         ),
         axis=1
-    )
+    ).pint.convert_object_dtype()
     return df

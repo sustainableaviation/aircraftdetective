@@ -36,18 +36,22 @@ def determine_takeoff_to_cruise_tsfc_ratio(
         header=[0, 1],
         engine='openpyxl',
     )
-    df_engines.columns = df_engines.columns.droplevel(1) # units not needed to compute the ratio
-    df_engines = df_engines[df_engines[['TSFC(cruise)','TSFC(takeoff)']].notna().all(axis=1)]
+    df_engines = df_engines.pint.quantify(level=1)
+
+    df_engines = df_engines[df_engines[['TSFC (cruise)','TSFC (takeoff)']].notna().all(axis=1)]
     df_engines_grouped = df_engines.groupby(['Engine Identification'], as_index=False).agg(
         {
-            'TSFC(cruise)' : 'mean',
-            'TSFC(takeoff)' : 'mean',
-            'Introduction':'mean'
+            'TSFC (cruise)' : 'mean',
+            'TSFC (takeoff)' : 'mean',
+            'Introduction': 'mean'
         }
     )
 
-    x = df_engines_grouped['TSFC(takeoff)']
-    y = df_engines_grouped['TSFC(cruise)']
+    df_engines_grouped['TSFC (cruise)'] = df_engines_grouped['TSFC (cruise)'].astype("pint[g/(kN*s)]")
+    df_engines_grouped['TSFC (takeoff)'] = df_engines_grouped['TSFC (takeoff)'].astype("pint[g/(kN*s)]")
+
+    x = df_engines_grouped['TSFC (takeoff)'].astype("float64")
+    y = df_engines_grouped['TSFC (cruise)'].astype("float64")
 
     linear_fit = np.polynomial.Polynomial.fit(
         x=x,
@@ -69,7 +73,7 @@ def determine_takeoff_to_cruise_tsfc_ratio(
     r_squared_linear = r_squared(y, linear_fit(x))
     r_squared_polynomial = r_squared(y, polynomial_fit(x))
 
-    return linear_fit, polynomial_fit, r_squared_linear, r_squared_polynomial
+    return df_engines_grouped, linear_fit, polynomial_fit, r_squared_linear, r_squared_polynomial
 
 
 def scale_engine_data_from_icao_emissions_database(
@@ -105,23 +109,23 @@ def scale_engine_data_from_icao_emissions_database(
         column_names_and_units=[
             ("Engine Identification", "Engine Identification", str),
             ("Final Test Date", "Final Test Date", 'Int32'),
-            ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
-            ("Fuel Flow C/O (kg/sec)", "Fuel Flow C/O", "pint[kg/s]"),
-            ("Fuel Flow App (kg/sec)", "Fuel Flow App", "pint[kg/s]"),
-            ("Fuel Flow Idle (kg/sec)", "Fuel Flow Idle", "pint[kg/s]"),
+            ("Fuel Flow T/O (kg/sec)", "Fuel Flow (takeoff)", "pint[kg/s]"),
+            ("Fuel Flow C/O (kg/sec)", "Fuel Flow (climbout)", "pint[kg/s]"),
+            ("Fuel Flow App (kg/sec)", "Fuel Flow (approach)", "pint[kg/s]"),
+            ("Fuel Flow Idle (kg/sec)", "Fuel Flow (idle))", "pint[kg/s]"),
             ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
             ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
             ("Rated Thrust (kN)", "Rated Thrust", "pint[kN]")
         ],
-
     )
 
-    # calculate TSFC(takeoff) from fuel flow and rated thrust
-    df_engines['TSFC(takeoff)'] = df_engines['Fuel Flow T/O'] / df_engines['Rated Thrust']
-    # calculate TSFC(cruise) from polynomial provided by function `determine_takeoff_to_cruise_tsfc_ratio()`
-    df_engines['TSFC(cruise)'] = df_engines['TSFC(takeoff)'].apply(lambda x: scaling_polynomial(x))
-    # re-set units, because the apply function does not keep the pint units
-    df_engines['TSFC(cruise)'] = df_engines['TSFC(cruise)'].astype(df_engines['TSFC(takeoff)'].dtype)
+    df_engines = df_engines.groupby(['Engine Identification'], as_index=False).agg('mean')
+
+    df_engines['TSFC (takeoff)'] = df_engines['Fuel Flow (takeoff)'] / df_engines['Rated Thrust']
+    df_engines['TSFC (takeoff)'] = df_engines['TSFC (takeoff)'].astype("pint[g/(kN*s)]") # commonly used unit for TSFC, to ensure compatibility with the polynomial
+
+    df_engines['TSFC (cruise)'] = df_engines['TSFC (takeoff)'].apply(lambda x: scaling_polynomial(x))
+    df_engines['TSFC (cruise)'] = df_engines['TSFC (cruise)'].astype("pint[g/(kN*s)]") # commonly used unit for TSFC
 
     dataframe.export_typed_dataframe_to_excel(
         df=df_engines,
@@ -144,14 +148,14 @@ def plot_takeoff_to_cruise_tsfc_ratio(
     )
     df_linear_fit = pd.DataFrame(
         {
-            'TSFC(takeoff)': list_tsfc_takeoff,
-            'TSFC(cruise)': linear_fit(list_tsfc_takeoff)
+            'TSFC (takeoff)': list_tsfc_takeoff,
+            'TSFC (cruise)': linear_fit(list_tsfc_takeoff)
         }
     )
     df_polynomial_fit = pd.DataFrame(
         {
-            'TSFC(takeoff)': list_tsfc_takeoff,
-            'TSFC(cruise)': polynomial_fit(list_tsfc_takeoff)
+            'TSFC (takeoff)': list_tsfc_takeoff,
+            'TSFC (cruise)': polynomial_fit(list_tsfc_takeoff)
         }
     )
 
@@ -166,8 +170,8 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
     # TICKS AND LABELS ###########
 
-    ax.set_xlabel('TSFC(takeoff) [g/kNs]')
-    ax.set_ylabel("TSFC(cruise) [g/kNs]")
+    ax.set_xlabel('TSFC (takeoff) [g/kNs]')
+    ax.set_ylabel('TSFC (cruise) [g/kNs]')
 
     # COLORMAP ###################
 
@@ -177,8 +181,8 @@ def plot_takeoff_to_cruise_tsfc_ratio(
     # PLOTTING ###################
 
     scatterplot = ax.scatter(
-        df_engines['TSFC(takeoff)'],
-        df_engines['TSFC(cruise)'],
+        df_engines['TSFC (takeoff)'],
+        df_engines['TSFC (cruise)'],
         c=df_engines['Introduction'],
         cmap=cmap,
         marker='o',
@@ -186,15 +190,15 @@ def plot_takeoff_to_cruise_tsfc_ratio(
         plotnonfinite=True # for NaN values
     )
     ax.plot(
-        df_linear_fit['TSFC(takeoff)'],
-        df_linear_fit['TSFC(cruise)'],
+        df_linear_fit['TSFC (takeoff)'],
+        df_linear_fit['TSFC (cruise)'],
         color='red',
         linestyle='--',
         label='Polynomial Fit'
     )
     ax.plot(
-        df_polynomial_fit['TSFC(takeoff)'],
-        df_polynomial_fit['TSFC(cruise)'],
+        df_polynomial_fit['TSFC (takeoff)'],
+        df_polynomial_fit['TSFC (cruise)'],
         color='blue',
         linestyle='--',
         label='Linear Fit'
@@ -237,7 +241,7 @@ def compute_overall_engine_efficiency(
         Overall engine efficiency, dimensionless
     """
     fuel_heating_value = 44.1 * ureg('MJ/kg') # heating value of Jet A-1 fuel
-    return v_cruise / (fuel_heating_value * TSFC_cruise)
+    return (v_cruise.to_base_units() / TSFC_cruise.to_base_units()) * (1 / fuel_heating_value.to_base_units())
 
 
 def compute_engine_metrics(
@@ -247,10 +251,10 @@ def compute_engine_metrics(
     df["Engine Efficiency"] = df.apply(
         lambda row: compute_overall_engine_efficiency(
             TSFC_cruise=row["TSFC (cruise)"],
-            v_cruise=row["v_cruise"],
+            v_cruise=row["Cruise Speed"],
         ),
         axis=1
-    )
+    ).pint.convert_object_dtype()
     return df
 
 
