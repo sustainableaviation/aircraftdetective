@@ -151,7 +151,6 @@ df_ldmi = progress.compute_log_mean_divisia_index_of_efficiency(
     df=df_pol,
 )
 
-# %%
 
 import matplotlib.pyplot as plt
 # Generate x values for plotting the polynomial
@@ -230,13 +229,6 @@ pio.renderers.default = "notebook"
 
 df_plot = df_progress.dropna(subset=['Aerodynamic Efficiency Improvement (%)'])
 
-# Create a sample dataframe
-sample_data = {
-    'Aircraft Designation': ['Comet 4', 'B707-120', 'B737-200C', 'A380-800'],
-    'YOI': [1960, 1970, 1980, 1990],
-    'Aerodynamic Efficiency Improvement (%)': [5, 10, 15, 20]
-}
-df_sample = pd.DataFrame(sample_data)
 
 # https://plotly.com/python-api-reference/generated/plotly.express.scatter
 fig = px.scatter(
@@ -247,24 +239,3 @@ fig = px.scatter(
 
 # Show the figure
 fig.show()
-
-
-# %%
-df = pd.DataFrame(
-    {
-        "A": pd.Series([16.3, 16.2, 12.7, 12.7, np.nan, np.nan, np.nan, np.nan, np.nan, ], dtype="pint[dimensionless]"),
-        "B": pd.Series([np.nan, np.nan, 14.6, 14.6, np.nan, 16.4, np.nan, np.nan, np.nan, ], dtype="pint[dimensionless]"),
-    }
-)
-
-df["A"].fillna(df["B"])
-
-df["B"].fillna(df["A"])
-
-col_main = df_main_updated['L/D'][0:10]
-
-col_other = df_main_updated['L/D_update'][0:10]
-
-col_main.fillna(col_other)
-
-col_other.fillna(col_main)
