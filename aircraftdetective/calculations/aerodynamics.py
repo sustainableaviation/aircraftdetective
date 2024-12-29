@@ -120,7 +120,7 @@ def compute_aerodynamic_metrics(
             TSFC_cruise=row["TSFC (cruise)"]
         ),
         axis=1
-    ).pint.convert_object_dtype()
+    ).astype('pint[dimensionless]')
     df["Aspect Ratio"] = df.apply(
         lambda row: compute_aspect_ratio(
             b=row["Wingspan"],

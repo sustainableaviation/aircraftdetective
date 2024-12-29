@@ -108,7 +108,7 @@ def scale_engine_data_from_icao_emissions_database(
         return_only_renamed_columns=True,
         column_names_and_units=[
             ("Engine Identification", "Engine Identification", str),
-            ("Final Test Date", "Final Test Date", 'Int32'),
+            ("Final Test Date", "Final Test Date", float),
             ("Fuel Flow T/O (kg/sec)", "Fuel Flow (takeoff)", "pint[kg/s]"),
             ("Fuel Flow C/O (kg/sec)", "Fuel Flow (climbout)", "pint[kg/s]"),
             ("Fuel Flow App (kg/sec)", "Fuel Flow (approach)", "pint[kg/s]"),

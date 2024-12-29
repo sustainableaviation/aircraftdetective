@@ -27,7 +27,7 @@ df_engines = engines.scale_engine_data_from_icao_emissions_database(
 
 df_aircraft = pd.read_excel(
     io=config['aircraft_detective']['url_xlsx_aircraft_database'],
-    sheet_name='Data',
+    sheet_name='Raw Data',
     header=[0, 1],
     engine='openpyxl',
 )

@@ -2,7 +2,10 @@
 
 from pathlib import Path
 import pandas as pd
+import pint
 import pint_pandas
+ureg = pint.get_application_registry() # https://pint-pandas.readthedocs.io/en/latest/user/common.html#using-a-shared-unit-registry
+
 
 
 def rename_columns_and_set_units(
@@ -243,6 +246,10 @@ def update_column_data(
     list_columns : list[str]
         _description_
 
+    See Also
+    --------
+    - [GitHub Issues/PR at `pint-pandas`](https://github.com/hgrecco/pint-pandas/pull/247)
+
     Returns
     -------
     pd.DataFrame
@@ -257,8 +264,37 @@ def update_column_data(
     )
 
     for col in list_columns:
-        df_main_updated[col] = df_main_updated[col].combine_first(df_main_updated[f"{col}_update"])
+        df_main_updated[col] = df_main_updated[f"{col}_update"].astype(float).fillna(
+            df_main_updated[col].astype(float)
+        ).astype(df_main_updated[col].dtype)
 
     df_main_updated = df_main_updated.drop(columns=[f"{col}_update" for col in list_columns])
 
     return df_main_updated
+
+df_main = pd.read_excel(
+    io='/Users/michaelweinold/Downloads/test_update_cols.xlsx',
+    sheet_name='Main',
+    header=[0, 1],
+    engine='openpyxl',
+)
+df_main = df_main.pint.quantify(level=1)
+
+df_other = pd.read_excel(
+    io='/Users/michaelweinold/Downloads/test_update_cols.xlsx',
+    sheet_name='Other',
+    header=[0, 1],
+    engine='openpyxl',
+)
+df_other = df_other.pint.quantify(level=1)
+
+# %%
+update_column_data(
+    df_main=df_main,
+    df_other=df_other,
+    merge_column='Aircraft Identification',
+    list_columns=['L/D']
+)
+
+
+# %%

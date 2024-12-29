@@ -32,14 +32,22 @@ df_aircraft = pd.read_excel(
     header=[0, 1],
     engine='openpyxl',
 )
+
+
 df_aircraft = df_aircraft.pint.quantify(level=1)
 
+df_aircraft = df_aircraft[df_aircraft['Type'] != 'Regional']
+# df_aircraft = df_aircraft[df_aircraft['Type'] != 'Narrow']
 
 df_stats = statistics.process_data_usdot_t2(
     path_csv_t2=config['US_DOT']['url_csv_schedule_t2'],
     path_csv_aircraft_types=config['US_DOT']['url_csv_aircraft_types'],
 )
 df_stats = df_stats.groupby('Aircraft Designation (US DOT Schedule T2)')['Fuel/Available Seat Distance'].mean().reset_index()
+df_stats = statistics.remove_outliers_usdot_t2(
+    df=df_stats,
+    aircraft_designations=['Airbus Industrie A310-200C/F', 'Boeing 777-300/300ER/333ER']
+)
 
 df_aircraft_enriched = pd.merge(
     left=df_aircraft,
@@ -58,6 +66,14 @@ df_engines = engines.scale_engine_data_from_icao_emissions_database(
     scaling_polynomial=polynomial_fit
 )
 
+engines_wildcard: set = engines.get_engine_designations_with_wildcard(df=df_aircraft)
+
+df_engines = engines.average_engine_data_by_model(
+    df=df_engines,
+    engine_models_to_average=engines_wildcard
+)
+
+
 df_aircraft_enriched = pd.merge(
     left=df_aircraft_enriched,
     right=df_engines,
@@ -65,6 +81,7 @@ df_aircraft_enriched = pd.merge(
     left_on='Engine Designation',
     right_on='Engine Identification'
 )
+
 
 df_aircraft_enriched = weights.compute_weight_metrics(df=df_aircraft_enriched)
 df_aircraft_enriched = aerodynamics.compute_aerodynamic_metrics(df=df_aircraft_enriched)
@@ -80,16 +97,10 @@ df_aircraft_literature = pd.read_excel(
 )
 df_aircraft_literature = df_aircraft_literature.pint.quantify(level=1)
 
+
 list_columns=['Energy Use', 'L/D', 'TSFC (cruise)', 'OEW/MTOW']
 merge_column='Aircraft Designation (Literature)'
 
-df_updated = pd.merge(
-    left=df_aircraft_enriched,
-    right=df_aircraft_literature[list_columns + [merge_column]],
-    on=merge_column,
-    how='left',
-    suffixes=('', '_update')
-)
 
 df_updated = dataframe.update_column_data(
     df_main=df_aircraft_enriched,
@@ -98,84 +109,162 @@ df_updated = dataframe.update_column_data(
     list_columns=list_columns,
 )
 
-df_progress = progress.normalize_aircraft_efficiency_metrics(
-    df=df_updated,
-    baseline_aircraft_designation_wide='B707-120',
-    baseline_aircraft_designation_narrow='B737-200C',
-)
 
 # %%
 
-pol = progress.determine_polynomial_fit(
-    df=df_progress,
-    column='Engine Efficiency (relative)',
-    degree=4,
+df_progress = progress.compute_normalized_aircraft_efficiency_metrics(
+    df=df_updated,
+    baseline_aircraft_designation='Comet 4',
 )
+
+pol_engine = progress.determine_polynomial_fit(
+    df=df_progress,
+    column='Engine Efficiency Improvement (%)',
+    degree=2,
+)
+pol_aero = progress.determine_polynomial_fit(
+    df=df_progress,
+    column='Aerodynamic Efficiency Improvement (%)',
+    degree=2,
+)
+pol_struct = progress.determine_polynomial_fit(
+    df=df_progress,
+    column='Structural Efficiency Improvement (%)',
+    degree=2,
+)
+pol_overall = progress.determine_polynomial_fit(
+    df=df_progress,
+    column='Overall Efficiency Improvement (%)',
+    degree=2,
+)
+
+
+df_pol = progress.create_efficiency_dataframe_from_polynomials(
+    polynomial_overall=pol_overall,
+    polynomial_engine=pol_engine,
+    polynomial_aerodynamic=pol_aero,
+    polynomial_structural=pol_struct,
+    yoi_range=(1960, 2020),
+)
+
+df_ldmi = progress.compute_log_mean_divisia_index_of_efficiency(
+    df=df_pol,
+)
+
+# %%
 
 import matplotlib.pyplot as plt
 # Generate x values for plotting the polynomial
-x_values = np.linspace(df_progress['YOI'].min(), df_progress['YOI'].max(), 500)
-y_values = pol(x_values)
+
+ax, fig = plt.subplots()
+
+plt.xlim(1958, 2030)
+plt.ylim(-15,300)
 
 # Plot the polynomial
-plt.plot(x_values, y_values, color='green', linestyle='--', label='Energy Use (polynomial fit)')
-plt.legend(loc='upper left')
-
-
-# %%
-
-# plotting
-import matplotlib.pyplot as plt
-# unit conversion
-cm = 1/2.54 # for inches-cm conversion
-# time manipulation
-from datetime import datetime
-# data science
-import numpy as np
-import pandas as pd
-
-fig, ax = plt.subplots(
-    num = 'main',
-    nrows = 1,
-    ncols = 1,
-    dpi = 300,
-    figsize=(20*cm, 10*cm), # A4=(210x297)mm,
-)
-
-ax.set_xlim(1950, 2030)
-ax.set_ylim(-30,150)
-
-plt.scatter(
-    df_progress['YOI'],
-    df_progress['Engine Efficiency (relative)'],
-    color = 'black',
-    marker = 'o',
+plt.plot(
+    df_pol['YOI'],
+    df_pol['Overall Efficiency Improvement (%)'],
+    color='green',
+    linestyle='--',
+    label='Overall Efficiency Improvement (%)',
 )
 plt.scatter(
     df_progress['YOI'],
-    df_progress['Aerodynamic Efficiency (relative)'],
-    color = 'blue',
-    marker = 'o',
-)
-plt.scatter(
-    df_progress['YOI'],
-    df_progress['Structural Efficiency (relative)'],
-    color = 'red',
-    marker = 'o',
-)
-plt.scatter(
-    df_progress['YOI'],
-    df_progress['Energy Use (relative)'],
+    df_progress['Overall Efficiency Improvement (%)'],
     color = 'green',
     marker = 'o',
 )
 
-plt.legend(
-    [
-        'Engine Efficiency',
-        'Aerodynamic Efficiency',
-        'Structural Efficiency',
-        'Energy Use',
-    ],
-    loc='upper left',
+plt.plot(
+    df_pol['YOI'],
+    df_pol['Engine Efficiency Improvement (%)'],
+    color='black',
+    linestyle='--',
+    label='Engine Efficiency Improvement (%)',
 )
+plt.scatter(
+    df_progress['YOI'],
+    df_progress['Engine Efficiency Improvement (%)'],
+    color = 'black',
+    marker = 'o',
+)
+
+plt.plot(
+    df_pol['YOI'],
+    df_pol['Aerodynamic Efficiency Improvement (%)'],
+    color='blue',
+    linestyle='--',
+    label='Aerodynamic Efficiency Improvement (%)',
+)
+plt.scatter(
+    df_progress['YOI'],
+    df_progress['Aerodynamic Efficiency Improvement (%)'],
+    color = 'blue',
+    marker = 'o',
+)
+
+
+plt.legend(loc='upper left')
+
+list_cols_for_plot = [
+    'YOI',
+    'lmdi_contrib_engine_efficiency',
+    'lmdi_contrib_structural_efficiency',
+    'lmdi_contrib_aerodynamic_efficiency',
+    'lmdi_contrib_redisual'
+]
+
+df_ldmi[list_cols_for_plot].plot(
+    kind='bar',
+    x='YOI',
+    stacked=True,
+)
+
+# %%
+
+import plotly.io as pio
+import plotly.express as px
+
+pio.renderers.default = "notebook"
+
+df_plot = df_progress.dropna(subset=['Aerodynamic Efficiency Improvement (%)'])
+
+# Create a sample dataframe
+sample_data = {
+    'Aircraft Designation': ['Comet 4', 'B707-120', 'B737-200C', 'A380-800'],
+    'YOI': [1960, 1970, 1980, 1990],
+    'Aerodynamic Efficiency Improvement (%)': [5, 10, 15, 20]
+}
+df_sample = pd.DataFrame(sample_data)
+
+# https://plotly.com/python-api-reference/generated/plotly.express.scatter
+fig = px.scatter(
+    x=df_progress['YOI'],
+    y=df_progress['Aerodynamic Efficiency Improvement (%)'].astype('float64'),
+    hover_name=df_progress['Aircraft Designation'],
+)
+
+# Show the figure
+fig.show()
+
+
+# %%
+df = pd.DataFrame(
+    {
+        "A": pd.Series([16.3, 16.2, 12.7, 12.7, np.nan, np.nan, np.nan, np.nan, np.nan, ], dtype="pint[dimensionless]"),
+        "B": pd.Series([np.nan, np.nan, 14.6, 14.6, np.nan, 16.4, np.nan, np.nan, np.nan, ], dtype="pint[dimensionless]"),
+    }
+)
+
+df["A"].fillna(df["B"])
+
+df["B"].fillna(df["A"])
+
+col_main = df_main_updated['L/D'][0:10]
+
+col_other = df_main_updated['L/D_update'][0:10]
+
+col_main.fillna(col_other)
+
+col_other.fillna(col_main)

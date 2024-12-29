@@ -110,6 +110,8 @@ def process_data_usdot_t2(
     df_t2 = df_t2.loc[df_t2['REV_PAX_MILES'] <= df_t2['AVL_SEAT_MILES']]
     df_t2 = df_t2.loc[df_t2['HOURS_AIRBORNE'] <= df_t2['ACRFT_HRS_RAMPTORAMP']]
     
+
+
     # RETURN
 
     list_return_columns = [
@@ -124,3 +126,28 @@ def process_data_usdot_t2(
     df_t2 = df_t2[list_return_columns]
     df_t2 = df_t2.reset_index(drop=True)
     return df_t2
+
+
+def remove_outliers_usdot_t2(
+    df: pd.DataFrame,
+    aircraft_designations: list[str],
+) -> pd.DataFrame:
+    """_summary_
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        _description_
+    column : str
+        _description_
+    threshold : float
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
+    return df[~df['Aircraft Designation (US DOT Schedule T2)'].isin(aircraft_designations)]
