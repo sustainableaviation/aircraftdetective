@@ -271,30 +271,3 @@ def update_column_data(
     df_main_updated = df_main_updated.drop(columns=[f"{col}_update" for col in list_columns])
 
     return df_main_updated
-
-df_main = pd.read_excel(
-    io='/Users/michaelweinold/Downloads/test_update_cols.xlsx',
-    sheet_name='Main',
-    header=[0, 1],
-    engine='openpyxl',
-)
-df_main = df_main.pint.quantify(level=1)
-
-df_other = pd.read_excel(
-    io='/Users/michaelweinold/Downloads/test_update_cols.xlsx',
-    sheet_name='Other',
-    header=[0, 1],
-    engine='openpyxl',
-)
-df_other = df_other.pint.quantify(level=1)
-
-# %%
-update_column_data(
-    df_main=df_main,
-    df_other=df_other,
-    merge_column='Aircraft Identification',
-    list_columns=['L/D']
-)
-
-
-# %%

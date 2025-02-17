@@ -1,0 +1,40 @@
+# https://www.mkdocs.org/user-guide/configuration/
+site_name: JetFuelBurn Documentation
+repo_url: https://github.com/sustainableaviation/jetfuelburn
+copyright: © Paul Scherrer Institute (PSI) | Code under MIT License | Documentation under CC BY 4.0 License
+nav:
+  - Home: 'index.md'
+theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
+  name: readthedocs
+  logo: _static/logo/aircraftdetective_logo_wide.svg
+  highlightjs: true
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - content.footnote.tooltips
+plugins:
+  - search:
+      min_search_length: 2
+      indexing: 'full'
+  - mkdocstrings: # https://mkdocstrings.github.io/python/usage/
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+watch:
+  - aircraftdetective
+

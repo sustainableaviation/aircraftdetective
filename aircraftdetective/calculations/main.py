@@ -229,11 +229,24 @@ pio.renderers.default = "notebook"
 
 df_plot = df_progress.dropna(subset=['Aerodynamic Efficiency Improvement (%)'])
 
-
 # https://plotly.com/python-api-reference/generated/plotly.express.scatter
 fig = px.scatter(
     x=df_progress['YOI'],
     y=df_progress['Aerodynamic Efficiency Improvement (%)'].astype('float64'),
+    hover_name=df_progress['Aircraft Designation'],
+)
+
+# Show the figure
+fig.show()
+
+# %%
+
+df_plot = df_progress.dropna(subset=['Overall Efficiency Improvement (%)'])
+
+# https://plotly.com/python-api-reference/generated/plotly.express.scatter
+fig = px.scatter(
+    x=df_progress['YOI'],
+    y=df_progress['Overall Efficiency Improvement (%)'].astype('float64'),
     hover_name=df_progress['Aircraft Designation'],
 )
 
