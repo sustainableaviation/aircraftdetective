@@ -1,0 +1,6 @@
+mkdocstrings-python
+pymdown-extensions
+mkdocs-jupyter
+markdown-exec
+mkdocs-include-markdown-plugin
+plotly-express

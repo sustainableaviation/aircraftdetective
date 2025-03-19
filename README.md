@@ -1,1 +1,3 @@
-# aircraft_performance_data_pipeline
+# AircraftDetective
+
+A Python package for estimating the efficiency of commercial aircraft.

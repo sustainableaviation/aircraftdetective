@@ -1,15 +1,11 @@
 # %%
 
-# Support for Physical Units
-import pint
-ureg = pint.get_application_registry()
+from aircraftdetective import ureg
 import pint_pandas
 
-# System
 from pathlib import Path
 import math
 
-# Data Science
 import pandas as pd
 import numpy as np
 
