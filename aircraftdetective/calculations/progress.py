@@ -151,11 +151,22 @@ def compute_log_mean_divisia_index_of_efficiency(
     """
     Given total and sub-efficiency values at two points in time, compute the log mean Divisia index.
 
-    ΔC₁ + ΔC₂ + ... + ΔCₙ = ΔC
+    $$
+    \Delta C = \Delta C_1 + \Delta C_2 + ... + \Delta C_n$
+    $$
+
+    where
+
+    | Symbol | Unit     | Description      |
+    |--------|----------|------------------|
+    | $C$    | -        | Efficiency       |
+    | $C_i$  | -        | Sub-efficiency i |
+
 
     See Also
     --------
-    - [Ang & Goh (2019), eqn. (2) ff.](https://doi.org/10.1016/j.eneco.2019.06.013)
+    Ang, Beng Wah, and Tian Goh. "Index decomposition analysis for comparing emission scenarios: Applications and challenges."
+    _Energy Economics_ 83 (2019): 74-87. doi:[10.1016/j.eneco.2019.06.013](https://doi.org/10.1016/j.eneco.2019.06.013)
 
     Parameters
     ----------

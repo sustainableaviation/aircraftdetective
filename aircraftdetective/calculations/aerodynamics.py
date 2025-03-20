@@ -1,13 +1,6 @@
 # %%
-
 from aircraftdetective import ureg
-import pint_pandas
-
-from pathlib import Path
 import math
-
-import pandas as pd
-import numpy as np
 
 
 @ureg.check(
@@ -26,21 +19,35 @@ def compute_lift_to_drag_ratio(
     v_cruise: pint.Quantity,
     TSFC_cruise: pint.Quantity,
 ) -> pint.Quantity:
-    """
+    r"""
     Given points from a payload/range diagram of an aircraft,
     calculates the lift-to-drag ratio (=aerodynamic efficiency)
     based on the Breguet range equation.
 
     .. image:: https://upload.wikimedia.org/wikipedia/commons/0/04/Payload_Range_Diagram_Airbus_A350-900.svg
 
+    $$
+    \frac{L}{D} = \frac{K g TSFC_{cruise}}{v_{cruise}} = \frac{R g TSFC_{cruise}}{v_{cruise} \ln(\frac{MTOW}{MZFW} (1-\beta))}
+    $$
+
+    where
+
+    | Symbol             | Unit               | Description                                      |
+    |--------------------|--------------------|--------------------------------------------------|
+    | $L/D$              | -                  | Lift-to-drag ratio                               |
+    | $K$                | -                  | Breguet range equation constant                  |
+    | $g$                | [m/s$^2$]          | Acceleration due to gravity                      |
+    | $R$                | [m]                | Aircraft range                                   |
+    | $TSFC_{cruise}$    | [time]/[length]    | Thrust-specific fuel consumption at cruise       |
+    | $v_{cruise}$       | [m/s]              | Cruise speed                                     |
+    | $MTOW$             | [kg]               | Maximum takeoff weight                           |
+    | $MZFW$             | [kg]               | Maximum zero fuel weight                         |
+    | $\beta$            | -                  | Correction factor for the Breguet range equation |
+
     See Also
     --------
-    Range parameter $K$:
-
-    -[Young (2018), eqn. (13.36)](https://doi.org/10.1002/9781118534786)
-
-    Other uses of the correction factor beta:
-    - [Martinez-Val et al. (2005), eqn. (4)](https://doi.org/10.2514/6.2005-121)
+    - [Young (2018), eqn. (13.36)](https://doi.org/10.1002/9781118534786)
+    - [Martinez-Val et al. (2005), eqn. (4) for use of the correction factor $\beta$:](https://doi.org/10.2514/6.2005-121)
 
     Parameters
     ----------
@@ -63,7 +70,7 @@ def compute_lift_to_drag_ratio(
         Lift-to-drag ratio ("L/D"), dimensionless
     """
     g = 9.81 * ureg('m/s**2')
-    K = R/np.log((MTOW/MZFW)*(1-beta))
+    K = R/math.log((MTOW/MZFW)*(1-beta))
     ld = (K*g*TSFC_cruise)/v_cruise
     return ld.to_base_units()
 
@@ -76,9 +83,21 @@ def compute_aspect_ratio(
     b: pint.Quantity,
     S: pint.Quantity,
 ) -> pint.Quantity:
-    """
+    r"""
     Given the wingspan $b$ and the wing area $S$, returns the aspect ratio $A$ of an aircraft.
 
+    $$
+    A = \frac{b^2}{S}
+    $$
+
+    where
+
+    | Symbol | Unit     | Description  |
+    |--------|----------|--------------|
+    | $A$    | -        | Aspect ratio |
+    | $b$    | [length] | Wingspan     |
+    | $S$    | [area]   | Wing area    |
+    
     Parameters
     ----------
     b : pint.Quantity
