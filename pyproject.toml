@@ -33,6 +33,7 @@ dependencies = [
     "pint",
     "pint-pandas",
     "pandas",
+    "openpyxl",
     "numpy"
 ]
 
@@ -53,17 +54,10 @@ testing = [
 [tool.setuptools]
 include-package-data = true
 packages = [
-  "jetfuelburn",
-  "jetfuelburn.aux",
-  "jetfuelburn.data",
-  "jetfuelburn.data.AIM2015",
-  "jetfuelburn.data.PS2025",
+  "aircraftdetective",
 ]
 
 [tool.setuptools.package-data]
-"jetfuelburn.data" = ["*.csv"]
-"jetfuelburn.data.AIM2015" = ["*.csv"]
-"jetfuelburn.data.PS2025" = ["*.csv"]
 
 [tool.setuptools.dynamic]
 version = {attr = "aircraftdetective.__version__"} 

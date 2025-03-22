@@ -12,7 +12,7 @@ module_path = os.path.abspath("/Users/michaelweinold/github/aircraftdetective")
 if module_path not in sys.path:
     sys.path.append(module_path)
 
-from aircraftdetective.auxiliary import dataframe
+from aircraftdetective.utility import tabular
 from aircraftdetective import config
 
 # %%
@@ -113,9 +113,9 @@ def read_aircraft_database_com(
     |----|-------|--------|--------|
     | 1  | (...) | 42     | 12.45  |
     """
-    df = dataframe.explode_column_with_list_elements(df=df)
+    df = tabular.explode_column_with_list_elements(df=df)
 
-    df = dataframe.rename_columns_and_set_units(
+    df = tabular.rename_columns_and_set_units(
         df=df,
         column_names_and_units=[
             ("id", "_id_aircraft", str),
@@ -125,7 +125,7 @@ def read_aircraft_database_com(
             ("engineCount", "Engine Count", int),
         ]
     )
-    df = dataframe.rename_columns_and_set_units(
+    df = tabular.rename_columns_and_set_units(
         df=df,
         column_names_and_units=list_column_names_and_units_properties
     )
@@ -231,9 +231,9 @@ def read_engine_database_com(
     |----|-------|--------|--------|
     | 1  | (...) | 42     | 12.45  |
     """
-    df = dataframe.explode_column_with_list_elements(df=df)
+    df = tabular.explode_column_with_list_elements(df=df)
 
-    df = dataframe.rename_columns_and_set_units(
+    df = tabular.rename_columns_and_set_units(
         df=df,
         column_names_and_units=[
             ("id", "_id_engine", str),
@@ -241,7 +241,7 @@ def read_engine_database_com(
             ("manufacturer", "Engine Manufacturer", str),
         ]
     )
-    df = dataframe.rename_columns_and_set_units(
+    df = tabular.rename_columns_and_set_units(
         df=df,
         column_names_and_units=list_column_names_and_units_properties
     )

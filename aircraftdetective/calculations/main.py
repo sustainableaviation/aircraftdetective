@@ -12,7 +12,7 @@ if module_path not in sys.path:
     sys.path.append(module_path)
 
 from aircraftdetective.calculations import engines
-from aircraftdetective.auxiliary import dataframe
+from aircraftdetective.utility import tabular
 from aircraftdetective.processing import databases
 
 from aircraftdetective import config
@@ -101,7 +101,7 @@ list_columns=['Energy Use', 'L/D', 'TSFC (cruise)', 'OEW/MTOW']
 merge_column='Aircraft Designation (Literature)'
 
 
-df_updated = dataframe.update_column_data(
+df_updated = tabular.update_column_data(
     df_main=df_aircraft_enriched,
     df_other=df_aircraft_literature,
     merge_column='Aircraft Designation (Literature)',

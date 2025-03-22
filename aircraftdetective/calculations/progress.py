@@ -10,7 +10,7 @@ def compute_normalized_aircraft_efficiency_metrics(
     df: pd.DataFrame,
     baseline_aircraft_designation: str,
 ) -> pd.DataFrame:
-    """
+    r"""
     Converts aircraft efficiency metrics into "% improvement over the earliest aircraft in the dataset"
     XXXXXXXXXXX
     XXXXXXXXXXX
@@ -71,7 +71,7 @@ def determine_polynomial_fit(
     column: str,
     degree: int,
 ) -> np.polynomial.Polynomial:
-    """
+    r"""
     Given a DataFrame with Pint unit columns, a column name, and a polynomial degree, return a polynomial fit of the data in the column.
     
     Parameters
@@ -112,7 +112,7 @@ def create_efficiency_dataframe_from_polynomials(
     polynomial_aerodynamic: np.polynomial.Polynomial,
     yoi_range: tuple[int, int],
 ) -> pd.DataFrame:
-    """
+    r"""
     Given four polynomials and a range of years of introduction, create a DataFrame with efficiency metrics for each year in the range.
 
     Parameters
@@ -148,7 +148,7 @@ def create_efficiency_dataframe_from_polynomials(
 def compute_log_mean_divisia_index_of_efficiency(
     df: pd.DataFrame,
 ) -> float:
-    """
+    r"""
     Given total and sub-efficiency values at two points in time, compute the log mean Divisia index.
 
     $$

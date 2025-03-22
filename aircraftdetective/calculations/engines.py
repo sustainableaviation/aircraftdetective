@@ -1,24 +1,63 @@
-import pint
-import pint_pandas
-ureg = pint.get_application_registry()
+# %%
+from aircraftdetective import ureg
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 import re
 
 from aircraftdetective.utility import plotting
-from aircraftdetective.auxiliary import dataframe
+from aircraftdetective.utility import tabular
+from aircraftdetective.utility.statistics import r_squared
 from aircraftdetective import config
 
 
 def determine_takeoff_to_cruise_tsfc_ratio(
     path_excel_engine_data_for_calibration: str
 ) -> tuple[np.polynomial.Polynomial, np.polynomial.Polynomial, float, float]:
-    """_summary_
+    r"""
+    Given a path to an Excel file with engine TSFC data for takeoff and cruise,
+    computes two fitted polynomials (linear and quadratic).
+    Also returns the $R^2$ values for both fits and the cleaned DataFrame with engine data.
 
-    _extended_summary_
+    $$
+    \begin{aligned}
+    TSFC_{cruise} &= \beta_0 + \beta_1 \cdot TSFC_{takeoff} + \epsilon \\
+    TSFC_{cruise} &= \beta_0 + \beta_1 \cdot TSFC_{takeoff} + \beta_2 \cdot TSFC_{takeoff}^2 + \epsilon
+    \end{aligned}
+    $$
+
+    where
+
+    | Symbol           | Description                                      |
+    |------------------|--------------------------------------------------|
+    | $TSFC_{cruise}$  | Thrust-Specific Fuel Consumption at cruise       |
+    | $TSFC_{takeoff}$ | Thrust-Specific Fuel Consumption at takeoff      |
+    | $\beta_0$        | Intercept of the fitted polynomial               |
+    | $\beta_1$        | Slope of the fitted polynomial                   |
+    | $\beta_2$        | Quadratic coefficient of the fitted polynomial   |
+    | $\epsilon$       | Error term                                       |
+
+    Notes
+    -----
+
+    The Excel file must have a sheet named `Data` with at least the columns `[Engine Identification, TSFC (cruise), TSFC (takeoff)]`.
+    The first row of the sheet must contain the column names.
+    The second row must contain the units of the columns in square brackets `[]`, [in a format supported by Pint](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types).
+    Columns with no relevant units must be marked with `No Unit`.
+
+    | Engine Identification | TSFC (cruise)  | TSFC (takeoff) |
+    |-----------------------|----------------|----------------|
+    | **No Unit**           | **[g/(kN*s)]** | **[g/(kN*s)]** |
+    | D-30KU                | 19.82788889    | 13.87952222    |
+    | D-100                 | 15.2958        | 8.101108889    |
+    | CFE738                | 18.26998333    | 10.45213       |
+
+    See Also
+    --------
+    - [`numpy.polynomial.polynomial.Polynomial.fit()`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.fit.html)
+    - [Section 4.6.2 in Sadraey, 2nd Edition (2023)](https://doi.org/10.1201/9781003279068)
+    - [Thrust-Specific Fuel Consumption on Wikipedia](https://en.wikipedia.org/wiki/Thrust-specific_fuel_consumption)
 
     Parameters
     ----------
@@ -27,23 +66,30 @@ def determine_takeoff_to_cruise_tsfc_ratio(
 
     Returns
     -------
-    float
-        _description_
+    tuple[pd.DataFrame, np.polynomial.Polynomial, np.polynomial.Polynomial, float, float]
+        DataFrame with engine data and fitted polynomials with their R² values
+
+    Raises
+    ------
+    ValueError
+        If the Excel file does not contain the required columns or units.
     """
     df_engines = pd.read_excel(
         io=path_excel_engine_data_for_calibration,
         sheet_name='Data',
         header=[0, 1],
-        engine='openpyxl',
+        engine='openpyxl', 
     )
     df_engines = df_engines.pint.quantify(level=1)
+
+    if ('TSFC (cruise)') not in df_engines.columns or ('TSFC (takeoff)') not in df_engines.columns:
+        raise ValueError(f"Excel file must contain 'TSFC (cruise)' and 'TSFC (takeoff)' columns.")
 
     df_engines = df_engines[df_engines[['TSFC (cruise)','TSFC (takeoff)']].notna().all(axis=1)]
     df_engines_grouped = df_engines.groupby(['Engine Identification'], as_index=False).agg(
         {
             'TSFC (cruise)' : 'mean',
             'TSFC (takeoff)' : 'mean',
-            'Introduction': 'mean'
         }
     )
 
@@ -64,16 +110,16 @@ def determine_takeoff_to_cruise_tsfc_ratio(
         deg=2,
     )
 
-    def r_squared(y, y_pred):
-        # https://en.wikipedia.org/wiki/Coefficient_of_determination#Definitions
-        tss = np.sum((y - np.mean(y))**2)
-        rss = np.sum((y - y_pred)**2)
-        return 1 - (rss / tss)
-
     r_squared_linear = r_squared(y, linear_fit(x))
     r_squared_polynomial = r_squared(y, polynomial_fit(x))
 
-    return df_engines_grouped, linear_fit, polynomial_fit, r_squared_linear, r_squared_polynomial
+    return {
+        'df_engines': df_engines_grouped,
+        'pol_linear_fit': linear_fit,
+        'pol_quadratic_fit': polynomial_fit,
+        'r_squared_linear_fit': r_squared_linear,
+        'r_squared_quadratic_fit': r_squared_polynomial
+    }
 
 
 def scale_engine_data_from_icao_emissions_database(
@@ -81,9 +127,21 @@ def scale_engine_data_from_icao_emissions_database(
     path_excel_engine_data_icao_out: str,
     scaling_polynomial: np.polynomial.Polynomial
 ) -> pd.DataFrame:
-    """_summary_
+    r"""_summary_
 
-    _extended_summary_
+    Notes
+    -----
+
+    The Excel file must have a sheet named `Data` with at least the column `TSFC (takeoff)`.
+    The first row of the sheet must contain the column names.
+    The second row must contain the units of the column in square brackets `[]`, [in a format supported by Pint](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types).
+
+    | TSFC (takeoff) |
+    |----------------|
+    | **[g/(kN*s)]** |
+    | 13.87952222    |
+    | 8.101108889    |
+    | 10.45213       |
 
     Parameters
     ----------
@@ -103,7 +161,7 @@ def scale_engine_data_from_icao_emissions_database(
         engine='openpyxl',
     )
 
-    df_engines = dataframe.rename_columns_and_set_units(
+    df_engines = tabular.rename_columns_and_set_units(
         df=df_engines,
         return_only_renamed_columns=True,
         column_names_and_units=[
@@ -127,221 +185,9 @@ def scale_engine_data_from_icao_emissions_database(
     df_engines['TSFC (cruise)'] = df_engines['TSFC (takeoff)'].apply(lambda x: scaling_polynomial(x))
     df_engines['TSFC (cruise)'] = df_engines['TSFC (cruise)'].astype("pint[g/(kN*s)]") # commonly used unit for TSFC
 
-    dataframe.export_typed_dataframe_to_excel(
+    tabular.export_typed_dataframe_to_excel(
         df=df_engines,
         path=path_excel_engine_data_icao_out
     )
 
     return df_engines
-
-
-def plot_takeoff_to_cruise_tsfc_ratio(
-    df_engines: pd.DataFrame,
-    linear_fit: np.polynomial.Polynomial,
-    polynomial_fit: np.polynomial.Polynomial,
-):
-    
-    list_tsfc_takeoff = np.linspace(
-        start=0,
-        stop=25,
-        num=100
-    )
-    df_linear_fit = pd.DataFrame(
-        {
-            'TSFC (takeoff)': list_tsfc_takeoff,
-            'TSFC (cruise)': linear_fit(list_tsfc_takeoff)
-        }
-    )
-    df_polynomial_fit = pd.DataFrame(
-        {
-            'TSFC (takeoff)': list_tsfc_takeoff,
-            'TSFC (cruise)': polynomial_fit(list_tsfc_takeoff)
-        }
-    )
-
-    # SETUP ######################
-
-    fig, ax = plotting.set_figure_and_axes()
-
-    # AXIS LIMITS ################
-
-    ax.set_xlim(5, 20)
-    ax.set_ylim(12, 25)
-
-    # TICKS AND LABELS ###########
-
-    ax.set_xlabel('TSFC (takeoff) [g/kNs]')
-    ax.set_ylabel('TSFC (cruise) [g/kNs]')
-
-    # COLORMAP ###################
-
-    cmap = plt.cm.viridis
-    cmap.set_bad(color='red')
-
-    # PLOTTING ###################
-
-    scatterplot = ax.scatter(
-        df_engines['TSFC (takeoff)'],
-        df_engines['TSFC (cruise)'],
-        c=df_engines['Introduction'],
-        cmap=cmap,
-        marker='o',
-        edgecolor='k',
-        plotnonfinite=True # for NaN values
-    )
-    ax.plot(
-        df_linear_fit['TSFC (takeoff)'],
-        df_linear_fit['TSFC (cruise)'],
-        color='red',
-        linestyle='--',
-        label='Polynomial Fit'
-    )
-    ax.plot(
-        df_polynomial_fit['TSFC (takeoff)'],
-        df_polynomial_fit['TSFC (cruise)'],
-        color='blue',
-        linestyle='--',
-        label='Linear Fit'
-    )
-
-    # LEGEND ####################
-
-    cbar = fig.colorbar(mappable = scatterplot, ax=ax)
-    cbar.set_label('Year of Introduction')
-
-    fig.show()
-
-
-@ureg.check(
-    '[time]/[length]',
-    '[speed]',
-)
-def compute_overall_engine_efficiency(
-    TSFC_cruise: pint.Quantity,
-    v_cruise: pint.Quantity,
-) -> pint.Quantity:
-    """
-    Given the thrust-specific fuel consumption $TSFC$ and the cruise velocity $v_0$,
-    returns the overall engine efficiency $\eta_0$ under the assumption of the fuel heating value $LHV_{fuel}$ of Jet A1 fuel.
-
-    Parameters
-    ----------
-    TSFC : pint.Quantity
-        Thrust-specific fuel consumption, in units of [time]/[length]
-    v_cruise : pint.Quantity
-        Cruise velocity, in units of [speed]
-
-    See Also
-    --------
-    - [Young (2018), eqn. (8.24, solved for η₀) and figure 8.3.](https://doi.org/10.1002/9781118534786)
-
-    Returns
-    -------
-    pint.Quantity
-        Overall engine efficiency, dimensionless
-    """
-    fuel_heating_value = 44.1 * ureg('MJ/kg') # heating value of Jet A-1 fuel
-    return (v_cruise.to_base_units() / TSFC_cruise.to_base_units()) * (1 / fuel_heating_value.to_base_units())
-
-
-def compute_engine_metrics(
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-
-    df["Engine Efficiency"] = df.apply(
-        lambda row: compute_overall_engine_efficiency(
-            TSFC_cruise=row["TSFC (cruise)"],
-            v_cruise=row["Cruise Speed"],
-        ),
-        axis=1
-    ).pint.convert_object_dtype()
-    return df
-
-
-def get_engine_designations_with_wildcard(df: pd.DataFrame) -> set[str]:
-    """
-    Given a dataframe of aircraft data, returns a set of engine designations which contain a wildcard.
-
-    For example, given a DataFrame of the kind:
-
-    | Engine Designation | (...) |
-    |--------------------|-------|
-    | GEnx-1B.*          | (...) |
-    | CFM56-7B24         | (...) |
-
-    the function returns the set:
-
-    `{GEnx-1B.*}`
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Aircraft data, including column 'Engine Designation'
-
-    Returns
-    -------
-    set[str]
-        Set of (unique) engine designations with wildcards
-    """
-    return set(df[df['Engine Designation'].str.endswith(".*", na=False)]['Engine Designation'])
-
-
-def average_engine_data_by_model(
-    df: pd.DataFrame,
-    engine_models_to_average: list[str],
-) -> pd.DataFrame:
-    """
-    Given a DataFrame of engine data and a list of engine models to average,
-    returns a DataFrame with the average data for the engine models appended.
-
-    For example, given an iterable of engines to average,
-    correctly formatted with regex wildcards (note: `.*` instead of just `*`):
-
-    `{GEnx-1B.*}`
-
-    and a DataFrame of the kind:
-
-    | Engine Identification | (...) | Rated Thrust      |
-    |-----------------------|-------|-------------------|
-    | 'GEnx-1B54'           | (...) | 255.3             |
-    | 'GEnx-1B58'           | (...) | 271.3             |
-    | 'GEnx-1B64'           | (...) | 298               |
-
-    the function returns a DataFrame of the kind:
-
-    | Engine Identification | (...) | Rated Thrust      |
-    |-----------------------|-------|-------------------|
-    | 'GEnx-1B54'           | (...) | 255.3             |
-    | 'GEnx-1B58'           | (...) | 271.3             |
-    | 'GEnx-1B64'           | (...) | 298               |
-    | 'GEnx-1B*'            | (...) | 274.87            |
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Engine data, including column 'Engine Identification'
-    engine_models_to_average : list[str]
-        Iterable of engine models to average, correctly formatted with regex wildcards
-
-    Returns
-    -------
-    pd.DataFrame
-        Engine data with averaged values for the engine models in the list
-    """
-    df_matched = df.copy()
-    df_matched['Engine Identification'] = df_matched['Engine Identification'].apply(
-        lambda engine_identification: next(
-                (
-                    engine_pattern for engine_pattern in engine_models_to_average
-                    if re.match(engine_pattern, engine_identification)
-                ),
-                None
-            )
-    )
-    df_matched = df_matched.dropna(subset=['Engine Identification'])
-    df_matched = df_matched.groupby(['Engine Identification'], as_index=False).agg('mean')
-    df = pd.concat(
-        objs=[df, df_matched],
-        axis=0
-    ).reset_index(drop=True)
-    return df

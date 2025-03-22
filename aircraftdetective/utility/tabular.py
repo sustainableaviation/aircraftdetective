@@ -1,12 +1,8 @@
 # %%
-
+import pint_pandas
 from pathlib import Path
 import pandas as pd
-import pint
-import pint_pandas
-ureg = pint.get_application_registry() # https://pint-pandas.readthedocs.io/en/latest/user/common.html#using-a-shared-unit-registry
-
-
+from aircraftdetective import ureg
 
 def rename_columns_and_set_units(
     df: pd.DataFrame,
@@ -14,28 +10,41 @@ def rename_columns_and_set_units(
     column_names_and_units: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
     """
-    Given a dataframe and a list of tuples describing the column names and units, rename the columns and set the units.
+    Given a DataFrame and a list of tuples describing the column names and units, renames the columns and set the units.
 
-    _extended_summary_
+    ```
+    columns_and_units = [
+        ("<old column name>", "<new column name>", <new column unit>),
+        (...)
+    ```
 
+    For example:
+
+    ```
     columns_and_units = [
         ("Engine Identification", "Engine Identification", str),
-        ("Final Test Date", "Final Test Date", int),
-        ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
         ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
+        ("Fuel Flow T/O (kg/sec)", "Fuel Flow T/O", "pint[kg/s]"),
     ]
+    ```
+
+    Notes
+    -----
+    Units can be any [Pandas data type](https://pandas.pydata.org/docs/reference/arrays.html) or [Pint unit string](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types).
 
     Parameters
     ----------
     df : pd.DataFrame
-        _description_
+        Input DataFrame.
+    return_only_renamed_columns : bool
+        If True, only the renamed columns are included in the returned DataFrame.
     column_names_and_units : list[tuple[str, str, pint_pandas.pint_array.PintType]]
-        _description_
+        List of tuples describing the column names and units.
 
     Returns
     -------
     pd.DataFrame
-        _description_
+        DataFrame with renamed columns and set units.
     """
 
     for col_name_old, col_name_new, dtype in column_names_and_units:
@@ -52,13 +61,13 @@ def rename_columns_and_set_units(
 
 def _return_short_units(dtype: pint_pandas.pint_array.PintType) -> str:
     """
-    Given a pint_pandas PintType object, return the short unit string.
-    If the object does not have a unit attribute, return "No Unit".
+    Given a Pandas column `dtype` object, returns the short unit string.
+    If the object is not of pint_pandas PintType, returns "No Unit".
 
     Notes
     -----
-    The "No Unit" string which is returned when the object does not have a unit attribute must not be changed.
-    This is because `pint_pandas` [will (be default) ignore columns have a "No Unit" unit string](https://pint-pandas.readthedocs.io/en/latest/user/reading.html#pandas-dataframe-accessors).
+    The "No Unit" string which is returned when the object does not have a unit attribute should not be changed.
+    This is because `pint_pandas` [will (by default) ignore columns have a "No Unit" unit string](https://pint-pandas.readthedocs.io/en/latest/user/reading.html#pandas-dataframe-accessors).
 
     See Also
     --------
@@ -85,30 +94,35 @@ def export_typed_dataframe_to_excel(
         path: Path
 ) -> None:
     """
-    Given a DataFrame with PintArray columns, export it to an Excel file with the short units in the second row.
+    Given a DataFrame with [PintArray columns](https://pint-pandas.readthedocs.io/en/latest/), export it to an Excel file with the [short units](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types) in the second row.
     If a column is no PintArray (=has no physical unit), "No Unit" is used as a unit description.
 
     For example, a DataFrame with the following columns and units:
 
+    ```
     YOI                               pint[year]
     TSFC       pint[milligram / newton / second]
     Comment                               object
+    ```
 
     will be exported to an Excel file with the following structure:
 
-    | YOI   | TSFC   | Comment |
-    |-------|--------|---------|
-    | a     | mg/N/s | No Unit |
-    |-------|--------|---------|
-    | 1999  | 14.32  | FooBar  |
-    | (...) | (...)  | (...)   |
+    | YOI   | TSFC       | Comment     |
+    |-------|------------|-------------|
+    | **a** | **mg/N/s** | **No Unit** |
+    | 1999  | 14.32      | FooBar      |
+    | (...) | (...)      | (...)       |
 
     Note
     ----
     Simply using the df.ping.dequantify() method will not work, as it will throw units into a second-level column index.
-    Exporting this multi-index DataFrame to Excel directly will result in an empty row that breaks pd.read_excel().
+    Exporting this multi-index DataFrame to Excel directly will result in an empty row that breaks `pd.read_excel()`.
 
     - [Related Pandas GitHub Issue](https://github.com/pandas-dev/pandas/issues/27772)
+
+    See Also
+    --------
+    - [Pint String Formatting Specifications](https://pint.readthedocs.io/en/stable/user/formatting.html)
 
     Parameters
     ----------
