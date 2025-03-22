@@ -1,15 +1,10 @@
-# %%
-from aircraftdetective import ureg
-
 import pandas as pd
 import numpy as np
 
-import re
-
+from aircraftdetective import ureg
 from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import r_squared
-from aircraftdetective import config
 
 
 def determine_takeoff_to_cruise_tsfc_ratio(
@@ -127,30 +122,50 @@ def scale_engine_data_from_icao_emissions_database(
     path_excel_engine_data_icao_out: str,
     scaling_polynomial: np.polynomial.Polynomial
 ) -> pd.DataFrame:
-    r"""_summary_
+    r"""
+    Given a path or URL to the ICAO Aircraft Engine Emissions Databank Excel file,
+    scales the TSFC (takeoff) values to cruise using a provided polynomial.
+
+    $$
+    TSFC_{cruise} = f(TSFC_{takeoff})
+    $$
+
+    where $f$ is the scaling polynomial.
 
     Notes
     -----
+    The returns DataFrame has only a subset of columns relevant to engine efficiency.
+    Columns labeled `🆕` are new columns computed by this function:
 
-    The Excel file must have a sheet named `Data` with at least the column `TSFC (takeoff)`.
-    The first row of the sheet must contain the column names.
-    The second row must contain the units of the column in square brackets `[]`, [in a format supported by Pint](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types).
+    | Output DataFrame Column Name | Unit/Data Type    |
+    |------------------------|-------------------------|
+    | Engine Identification  | `str`                   |
+    | Final Test Date        | `float`                 |
+    | 🆕 TSFC (cruise)       | `pint[g/(kN*s)]`        |
+    | 🆕 TSFC (takeoff)      | `pint[g/(kN*s)]`        |
+    | Fuel Flow (takeoff)    | `pint[kg/s]`            |
+    | Fuel Flow (climbout)   | `pint[kg/s]`            |
+    | Fuel Flow (approach)   | `pint[kg/s]`            |
+    | Fuel Flow (idle)       | `pint[kg/s]`            |
+    | B/P Ratio              | `pint[dimensionless]`   |
+    | Pressure Ratio         | `pint[dimensionless]`   |
+    | Rated Thrust           | `pint[kN]`              |
 
-    | TSFC (takeoff) |
-    |----------------|
-    | **[g/(kN*s)]** |
-    | 13.87952222    |
-    | 8.101108889    |
-    | 10.45213       |
+    See Also
+    --------
+    - [`aircraftdetective.calculations.engines.determine_takeoff_to_cruise_tsfc_ratio`][]
+    - [ICAO Aircraft Engine Emissions Databank](https://www.easa.europa.eu/en/domains/environment/icao-aircraft-engine-emissions-databank)
 
     Parameters
     ----------
     path_excel_engine_data_icao_in : str
-        _description_
+        Path or URL to the ICAO Aircraft Engine Emissions Databank Excel file.
+        Equivalent to parameter `io` in [`pandas.read_excel`](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html#pandas-read-excel).
     path_excel_engine_data_icao_out : str
-        _description_
+        Path to save the scaled engine data Excel file.
+        Equivalent to parameter `excel_writer` in [`pandas.DataFrame.to_excel`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_excel.html).
     scaling_polynomial : np.polynomial.Polynomial
-        _description_
+        [`numpy.polynomial.polynomial.Polynomial`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.html#numpy.polynomial.polynomial.Polynomial) Polynomial to scale TSFC (takeoff) to TSFC (cruise).
     """
 
     df_engines = pd.read_excel(
@@ -170,7 +185,7 @@ def scale_engine_data_from_icao_emissions_database(
             ("Fuel Flow T/O (kg/sec)", "Fuel Flow (takeoff)", "pint[kg/s]"),
             ("Fuel Flow C/O (kg/sec)", "Fuel Flow (climbout)", "pint[kg/s]"),
             ("Fuel Flow App (kg/sec)", "Fuel Flow (approach)", "pint[kg/s]"),
-            ("Fuel Flow Idle (kg/sec)", "Fuel Flow (idle))", "pint[kg/s]"),
+            ("Fuel Flow Idle (kg/sec)", "Fuel Flow (idle)", "pint[kg/s]"),
             ("B/P Ratio", "B/P Ratio", "pint[dimensionless]"),
             ("Pressure Ratio", "Pressure Ratio", "pint[dimensionless]"),
             ("Rated Thrust (kN)", "Rated Thrust", "pint[kN]")
