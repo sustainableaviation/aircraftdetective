@@ -1,5 +1,5 @@
 # https://www.mkdocs.org/user-guide/configuration/
-site_name: AircraftDetective Documentation
+site_name: AircraftDetective
 repo_url: https://github.com/sustainableaviation/aircraftdetective
 copyright: © Paul Scherrer Institute (PSI) | Code under MIT License
 nav:
@@ -8,8 +8,10 @@ nav:
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
   - API (Public):
+    - Overall: 'api/overall.md'
     - Aerodynamics: 'api/aerodynamics.md'
     - Engines: 'api/engines.md'
+    - Attribution: 'api/attribution.md'
   - API (Private):
     - Tabular: 'api/tabular.md'
     - Statistics: 'api/statistics.md'

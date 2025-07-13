@@ -22,7 +22,7 @@ from aircraftdetective.calculations import weights
 from aircraftdetective.calculations import engines
 from aircraftdetective.calculations import overall
 from aircraftdetective.processing import statistics
-from aircraftdetective.calculations import progress
+from aircraftdetective.calculations import attribution
 
 
 df_aircraft = pd.read_excel(
@@ -146,7 +146,7 @@ df_pol = progress.create_efficiency_dataframe_from_polynomials(
     yoi_range=(1960, 2020),
 )
 
-df_ldmi = progress.compute_log_mean_divisia_index_of_efficiency(
+df_ldmi = attribution.compute_log_mean_divisia_index_of_efficiency(
     df=df_pol,
 )
 

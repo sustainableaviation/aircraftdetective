@@ -5,3 +5,4 @@ markdown-exec
 mkdocs-include-markdown-plugin
 plotly-express
 mkdocs-material
+mkdocs-table-reader-plugin

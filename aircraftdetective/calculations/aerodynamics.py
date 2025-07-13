@@ -1,4 +1,3 @@
-# %%
 from aircraftdetective import ureg
 import math
 
@@ -24,7 +23,28 @@ def compute_lift_to_drag_ratio(
     calculates the lift-to-drag ratio (=aerodynamic efficiency)
     based on the Breguet range equation.
 
-    .. image:: https://upload.wikimedia.org/wikipedia/commons/0/04/Payload_Range_Diagram_Airbus_A350-900.svg
+    ![Payload/Range Diagram](../_static/payload_range_generic.svg)
+    Payload/Range diagram of the Airbus A350-900 (data derived [from manufacturer information](https://web.archive.org/web/20211129144142/https://www.airbus.com/sites/g/files/jlcbta136/files/2021-11/Airbus-Commercial-Aircraft-AC-A350-900-1000.pdf)).
+    Note that in this figure, the y-axis shows _total_ aircraft weight, not _payload weight_.
+    Total aircraft weight can be computed by adding the operating empty weight (OEW) to the payload weight and fuel weight.
+
+    [Eqn. (13.34a) in Young (2018)](https://doi.org/10.1002/9781118534786):
+
+    $$
+    R = \frac{V}{cg} \frac{L}{D} \ln \bigg( \frac{m_1}{m_2} \bigg) \\
+    $$
+
+    where
+
+    | Symbol | Unit        | Description                                |
+    |--------|-------------|--------------------------------------------|
+    | $R$    | m           | Aircraft range                             |
+    | $V$    | m/s         | Cruise speed                               |
+    | $c$    | g/kNs       | Thrust-specific fuel consumption (average) |
+    | $g$    | m/s$^2$     | Acceleration due to gravity                |
+    | $L/D$  | -           | Lift-to-drag ratio                         |
+    | $m_1$  | kg          | weight at start of cruise segment          |
+    | $m_2$  | kg          | weight at end of cruise segment            |
 
     $$
     \frac{L}{D} = \frac{K g TSFC_{cruise}}{v_{cruise}} = \frac{R g TSFC_{cruise}}{v_{cruise} \ln(\frac{MTOW}{MZFW} (1-\beta))}
@@ -32,17 +52,22 @@ def compute_lift_to_drag_ratio(
 
     where
 
-    | Symbol             | Unit               | Description                                      |
-    |--------------------|--------------------|--------------------------------------------------|
-    | $L/D$              | -                  | Lift-to-drag ratio                               |
-    | $K$                | -                  | Breguet range equation constant                  |
-    | $g$                | [m/s$^2$]          | Acceleration due to gravity                      |
-    | $R$                | [m]                | Aircraft range                                   |
-    | $TSFC_{cruise}$    | [time]/[length]    | Thrust-specific fuel consumption at cruise       |
-    | $v_{cruise}$       | [m/s]              | Cruise speed                                     |
-    | $MTOW$             | [kg]               | Maximum takeoff weight                           |
-    | $MZFW$             | [kg]               | Maximum zero fuel weight                         |
-    | $\beta$            | -                  | Correction factor for the Breguet range equation |
+    | Symbol             | Unit            | Description                                      |
+    |--------------------|-----------------|--------------------------------------------------|
+    | $L/D$              | -               | Lift-to-drag ratio                               |
+    | $K$                | -               | Breguet range equation constant                  |
+    | $g$                | [m/s$^2$]       | Acceleration due to gravity                      |
+    | $R$                | [m]             | Aircraft range                                   |
+    | $TSFC_{cruise}$    | [time]/[length] | Thrust-specific fuel consumption at cruise       |
+    | $v_{cruise}$       | [m/s]           | Cruise speed                                     |
+    | $MTOW$             | [kg]            | Maximum takeoff weight                           |
+    | $MZFW$             | [kg]            | Maximum zero fuel weight                         |
+    | $\beta$            | -               | Correction factor for the Breguet range equation |
+
+    Eqn. (4) in Martinez-Val et al. (2005) defines the correction factor $\beta$ as:
+
+    $$
+    
 
     See Also
     --------
@@ -92,11 +117,11 @@ def compute_aspect_ratio(
 
     where
 
-    | Symbol | Unit     | Description  |
-    |--------|----------|--------------|
-    | $A$    | -        | Aspect ratio |
-    | $b$    | [length] | Wingspan     |
-    | $S$    | [area]   | Wing area    |
+    | Symbol | Dimension | Description  |
+    |--------|-----------|--------------|
+    | $A$    | -         | Aspect ratio |
+    | $b$    | [length]  | Wingspan     |
+    | $S$    | [area]    | Wing area    |
     
     Parameters
     ----------
@@ -107,7 +132,7 @@ def compute_aspect_ratio(
 
     See Also
     --------
-    - [Young (2018), eqn. (3.3)](https://doi.org/10.1002/9781118534786)
+    - [Eqn. (3.3) in Young (2018)](https://doi.org/10.1002/9781118534786)
     - [Aspect Ratio on Wikipedia](https://en.wikipedia.org/wiki/Aspect_ratio_(aeronautics))
 
     Returns
@@ -116,31 +141,3 @@ def compute_aspect_ratio(
         Aspect ratio, dimensionless
     """
     return (b**2)/S
-
-
-def compute_aerodynamic_metrics(
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-    
-    beta_widebody = 0.04
-    beta_narrowbody = 0.06
-
-    df["L/D"] = df.apply(
-        lambda row: compute_lift_to_drag_ratio(
-            R=row["Payload/Range: Range at Point A"],
-            beta=beta_widebody if row["Type"] == "Wide" else beta_narrowbody,
-            MTOW=row["Payload/Range: MTOW"],
-            MZFW=row["Payload/Range: ZFW at Point A"],
-            v_cruise=row["Cruise Speed"],
-            TSFC_cruise=row["TSFC (cruise)"]
-        ),
-        axis=1
-    ).astype('pint[dimensionless]')
-    df["Aspect Ratio"] = df.apply(
-        lambda row: compute_aspect_ratio(
-            b=row["Wingspan"],
-            S=row["Wing Area"]
-        ),
-        axis=1
-    ).pint.convert_object_dtype()
-    return df
