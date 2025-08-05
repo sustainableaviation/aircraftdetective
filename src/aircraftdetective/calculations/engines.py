@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 from aircraftdetective import ureg
-# from aircraftdetective.utility import plotting
+from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import r_squared
 
@@ -116,6 +116,84 @@ def determine_takeoff_to_cruise_tsfc_ratio(
         'r_squared_linear_fit': r_squared_linear,
         'r_squared_quadratic_fit': r_squared_polynomial
     }
+
+
+def plot_takeoff_to_cruise_tsfc_ratio(
+    df_engines: pd.DataFrame,
+    linear_fit: np.polynomial.Polynomial,
+    polynomial_fit: np.polynomial.Polynomial,
+):
+    fig, ax = plotting.set_figure_and_axes()
+    
+    list_tsfc_takeoff = np.linspace(
+        start=0,
+        stop=25,
+        num=100
+    )
+    df_linear_fit = pd.DataFrame(
+        {
+            'TSFC (takeoff)': list_tsfc_takeoff,
+            'TSFC (cruise)': linear_fit(list_tsfc_takeoff)
+        }
+    )
+    df_polynomial_fit = pd.DataFrame(
+        {
+            'TSFC (takeoff)': list_tsfc_takeoff,
+            'TSFC (cruise)': polynomial_fit(list_tsfc_takeoff)
+        }
+    )
+
+    # SETUP ######################
+
+    fig, ax = plotting.set_figure_and_axes()
+
+    # AXIS LIMITS ################
+
+    ax.set_xlim(5, 20)
+    ax.set_ylim(12, 25)
+
+    # TICKS AND LABELS ###########
+
+    ax.set_xlabel('TSFC (takeoff) [g/kNs]')
+    ax.set_ylabel('TSFC (cruise) [g/kNs]')
+
+    # COLORMAP ###################
+
+    cmap = plt.cm.viridis
+    cmap.set_bad(color='red')
+
+    # PLOTTING ###################
+
+    scatterplot = ax.scatter(
+        df_engines['TSFC (takeoff)'],
+        df_engines['TSFC (cruise)'],
+        c=df_engines['Introduction'],
+        cmap=cmap,
+        marker='o',
+        edgecolor='k',
+        plotnonfinite=True # for NaN values
+    )
+    ax.plot(
+        df_linear_fit['TSFC (takeoff)'],
+        df_linear_fit['TSFC (cruise)'],
+        color='red',
+        linestyle='--',
+        label='Polynomial Fit'
+    )
+    ax.plot(
+        df_polynomial_fit['TSFC (takeoff)'],
+        df_polynomial_fit['TSFC (cruise)'],
+        color='blue',
+        linestyle='--',
+        label='Linear Fit'
+    )
+
+    # LEGEND ####################
+
+    cbar = fig.colorbar(mappable = scatterplot, ax=ax)
+    cbar.set_label('Year of Introduction')
+
+    fig.show()
 
 
 def scale_engine_data_from_icao_emissions_database(

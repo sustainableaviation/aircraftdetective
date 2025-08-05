@@ -9,8 +9,9 @@ nav:
     - Engine Efficiency: 'theory/engines.md'
   - API (Public):
     - Engines: 'api/engines.md'
-  - API (Private):
-    - Tabular: 'api/tabular.md'
+  - API (Utilities):
+    - Tabular: 'api/utility/tabular.md'
+    - Statistics: 'api/utility/statistics.md'
 theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
   name: material
   #custom_dir: docs/_overrides
