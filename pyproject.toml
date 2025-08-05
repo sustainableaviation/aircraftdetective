@@ -52,12 +52,10 @@ testing = [
 ]
 
 [tool.setuptools]
-include-package-data = true
-packages = [
-  "aircraftdetective",
-]
+package-dir = {"" = "src"}
 
-[tool.setuptools.package-data]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.dynamic]
 version = {attr = "aircraftdetective.__version__"} 

@@ -1,8 +1,9 @@
+# %%
 import pandas as pd
 import numpy as np
 
 from aircraftdetective import ureg
-from aircraftdetective.utility import plotting
+# from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import r_squared
 

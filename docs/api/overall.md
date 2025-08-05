@@ -1,1 +1,0 @@
-::: aircraftdetective.calculations.overall

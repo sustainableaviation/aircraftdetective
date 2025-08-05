@@ -8,12 +8,3 @@ __all__ = (
 )
 
 __version__ = "0.0.0"
-
-import tomllib
-from pathlib import Path
-
-def load_config():
-    with open(Path(__file__).parent / "data/links.toml", "rb") as f:
-        return tomllib.load(f)
-
-config = load_config()

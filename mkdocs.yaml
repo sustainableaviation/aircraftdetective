@@ -8,13 +8,9 @@ nav:
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
   - API (Public):
-    - Overall: 'api/overall.md'
-    - Aerodynamics: 'api/aerodynamics.md'
     - Engines: 'api/engines.md'
-    - Attribution: 'api/attribution.md'
   - API (Private):
     - Tabular: 'api/tabular.md'
-    - Statistics: 'api/statistics.md'
 theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
   name: material
   #custom_dir: docs/_overrides
@@ -30,6 +26,15 @@ theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
     - navigation.indexes
     - navigation.top
     - content.footnote.tooltips
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 plugins:
   - search
   - table-reader
@@ -72,7 +77,7 @@ extra_css:
   - _css/extra.css
 
 watch:
-  - aircraftdetective
+  - src/aircraftdetective
 
 extra:
   generator: false
