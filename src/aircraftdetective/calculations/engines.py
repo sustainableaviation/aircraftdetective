@@ -7,6 +7,7 @@ from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import r_squared
 
+import matplotlib.pyplot as plt
 
 def determine_takeoff_to_cruise_tsfc_ratio(
     path_excel_engine_data_for_calibration: str
@@ -157,18 +158,11 @@ def plot_takeoff_to_cruise_tsfc_ratio(
     ax.set_xlabel('TSFC (takeoff) [g/kNs]')
     ax.set_ylabel('TSFC (cruise) [g/kNs]')
 
-    # COLORMAP ###################
-
-    cmap = plt.cm.viridis
-    cmap.set_bad(color='red')
-
     # PLOTTING ###################
 
     scatterplot = ax.scatter(
         df_engines['TSFC (takeoff)'],
         df_engines['TSFC (cruise)'],
-        c=df_engines['Introduction'],
-        cmap=cmap,
         marker='o',
         edgecolor='k',
         plotnonfinite=True # for NaN values
@@ -189,9 +183,6 @@ def plot_takeoff_to_cruise_tsfc_ratio(
     )
 
     # LEGEND ####################
-
-    cbar = fig.colorbar(mappable = scatterplot, ax=ax)
-    cbar.set_label('Year of Introduction')
 
     fig.show()
 

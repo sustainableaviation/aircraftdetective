@@ -2,10 +2,12 @@ import pytest
 import pandas as pd
 import numpy as np
 import pint_pandas
+from pathlib import Path
 from pandas.testing import assert_frame_equal
 from aircraftdetective.utility.tabular import (
     rename_columns_and_set_units,
-    _return_short_units
+    _return_short_units,
+    export_typed_dataframe_to_excel
 )
 
 @pytest.fixture
@@ -177,10 +179,6 @@ class TestRenameColumnsAndSetUnits:
 
 
 class TestReturnShortUnits:
-    """
-    Groups all tests for the _return_short_units function.
-    """
-
     @pytest.mark.parametrize(
         "input_dtype, expected_output",
         [
@@ -222,3 +220,65 @@ class TestReturnShortUnits:
 
         # Assert: Check if the result matches the expected output
         assert result == expected_output
+
+
+@pytest.fixture
+def sample_typed_df() -> pd.DataFrame:
+    data = {
+        "Year": pd.Series([1999, 2005, 2012], dtype="pint[year]"),
+        "Thrust": pd.Series([150.5, 165.2, 180.0], dtype="pint[kilonewton]"),
+        "Comment": pd.Series(["Initial", "Mid-life", "Final"], dtype="object"),
+    }
+    return pd.DataFrame(data)
+
+
+class TestExportTypedDataFrameToExcel:
+    """
+    Groups all tests for the export_typed_dataframe_to_excel function.
+    """
+
+    def test_excel_export_content_and_format(self, sample_typed_df, tmp_path):
+        """
+        Tests that the exported Excel file has the correct structure:
+        1. Correct column headers.
+        2. A second row with the correct short units.
+        3. The correct dequantified data below the unit row.
+        """
+        # --- Arrange ---
+        # Define the path for the output file inside pytest's temp directory
+        output_path = tmp_path / "test_export.xlsx"
+
+        # --- Act ---
+        # Call the function to create the Excel file
+        export_typed_dataframe_to_excel(sample_typed_df, output_path)
+
+        # --- Assert ---
+        # 1. Check that the file was actually created
+        assert output_path.exists()
+
+        # 2. Read the file back in to verify its contents.
+        # We need to read the headers and data separately.
+        # Read the unit row (the first data row in the file, index 0)
+        units_df = pd.read_excel(output_path, sheet_name='Data', header=0, nrows=1)
+        # Read the actual data, skipping the unit row
+        data_df = pd.read_excel(output_path, sheet_name='Data', header=0, skiprows=[1])
+
+        # 3. Verify the units row
+        expected_units = {
+            "Year": ["a"], # 'a' is the short unit for year (annum)
+            "Thrust": ["kN"],
+            "Comment": ["No Unit"],
+        }
+        expected_units_df = pd.DataFrame(expected_units)
+        assert_frame_equal(units_df, expected_units_df)
+
+        # 4. Verify the data portion
+        # Create the expected dequantified data frame
+        expected_data = sample_typed_df.pint.dequantify()
+        expected_data.columns = expected_data.columns.droplevel(1)
+        
+        # FIX: Cast columns to match how pandas reads them from Excel
+        expected_data['Year'] = expected_data['Year'].astype('int64')
+        expected_data['Thrust'] = expected_data['Thrust'].astype('float64')
+        
+        assert_frame_equal(data_df, expected_data)
