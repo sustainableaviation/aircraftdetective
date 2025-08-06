@@ -124,11 +124,18 @@ def plot_takeoff_to_cruise_tsfc_ratio(
     linear_fit: np.polynomial.Polynomial,
     polynomial_fit: np.polynomial.Polynomial,
 ):
-    fig, ax = plotting.set_figure_and_axes()
     
+    # DATA PREPARATION ##########
+
+    df_engines = df_engines.copy()
+    df_engines = df_engines.pint.dequantify()
+
+    max_tsfc_takeoff = df_engines['TSFC (takeoff)'].max().item()
+    min_tsfc_takeoff = df_engines['TSFC (takeoff)'].min().item()
+
     list_tsfc_takeoff = np.linspace(
-        start=0,
-        stop=25,
+        start=min_tsfc_takeoff - 5,
+        stop=max_tsfc_takeoff + 5,
         num=100
     )
     df_linear_fit = pd.DataFrame(
@@ -150,8 +157,8 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
     # AXIS LIMITS ################
 
-    ax.set_xlim(5, 20)
-    ax.set_ylim(12, 25)
+    #ax.set_xlim(5, 20)
+    #ax.set_ylim(12, 25)
 
     # TICKS AND LABELS ###########
 
