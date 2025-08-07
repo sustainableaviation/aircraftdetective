@@ -1,17 +1,19 @@
 # %%
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from aircraftdetective import ureg
 from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import r_squared
-
+from typing import Any
 import matplotlib.pyplot as plt
+
 
 def determine_takeoff_to_cruise_tsfc_ratio(
     path_excel_engine_data_for_calibration: str
-) -> tuple[np.polynomial.Polynomial, np.polynomial.Polynomial, float, float]:
+) -> dict[str, Any]:
     r"""
     Given a path to an Excel file with engine TSFC data for takeoff and cruise,
     computes two fitted polynomials (linear and quadratic).
@@ -195,8 +197,8 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
 
 def scale_engine_data_from_icao_emissions_database(
-    path_excel_engine_data_icao_in: str,
-    path_excel_engine_data_icao_out: str,
+    path_excel_engine_data_icao_in: Path,
+    path_excel_engine_data_icao_out: Path,
     scaling_polynomial: np.polynomial.Polynomial
 ) -> pd.DataFrame:
     r"""
