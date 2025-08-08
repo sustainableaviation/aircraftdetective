@@ -263,16 +263,16 @@ def scale_engine_data_from_icao_emissions_database(
         io=path_excel_engine_data_icao_in,
         sheet_name='Gaseous Emissions and Smoke',
         header=0,
-        converters={'Final Test Date': lambda x: int(pd.to_datetime(x).year)},
         engine='openpyxl',
     )
+    df_engines['Final Test Date'] = df_engines['Final Test Date'].dt.year.astype('Int64')
 
     df_engines = tabular.rename_columns_and_set_units(
         df=df_engines,
         return_only_renamed_columns=True,
         column_names_and_units=[
-            ("Engine Identification", "Engine Identification", "str"),
-            ("Final Test Date", "Final Test Date", "int"),
+            ("Engine Identification", "Engine Identification", str),
+            ("Final Test Date", "Final Test Date", "Int64"), # 'Int64' to ensure null values do not raise an error
             ("Fuel Flow T/O (kg/sec)", "Fuel Flow (takeoff)", "pint[kg/s]"),
             ("Fuel Flow C/O (kg/sec)", "Fuel Flow (climbout)", "pint[kg/s]"),
             ("Fuel Flow App (kg/sec)", "Fuel Flow (approach)", "pint[kg/s]"),
