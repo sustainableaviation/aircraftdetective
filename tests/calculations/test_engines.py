@@ -3,14 +3,14 @@ import pint_pandas
 import pytest
 import numpy as np
 import numpy.testing as npt
+import tempfile
+from pathlib import Path
 
 from aircraftdetective.calculations.engines import (
     determine_takeoff_to_cruise_tsfc_ratio,
     scale_engine_data_from_icao_emissions_database
 )
 
-import tempfile
-from pathlib import Path
 
 def test_determine_takeoff_to_cruise_tsfc_ratio():
     """
