@@ -43,7 +43,7 @@ def test_determine_takeoff_to_cruise_tsfc_ratio():
         'r_squared_linear_fit',
         'r_squared_quadratic_fit'
     ]
-    
+
     assert all(key in result_dict for key in expected_keys), "Result dictionary is missing expected keys"
 
     assert not result_dict['df_engines'].empty, "The returned DataFrame should not be empty"
@@ -62,7 +62,7 @@ def test_scale_engine_data():
     """
     input_data = {
         "Engine Identification": ["TestEngine-01"],
-        "Final Test Date": ["2023-01-01"],
+        "Final Test Date": [pd.to_datetime("2023-01-01")],
         "Fuel Flow T/O (kg/sec)": [15.0],
         "Fuel Flow C/O (kg/sec)": [12.0],
         "Fuel Flow App (kg/sec)": [8.0],
