@@ -126,6 +126,19 @@ def plot_takeoff_to_cruise_tsfc_ratio(
     linear_fit: np.polynomial.Polynomial,
     polynomial_fit: np.polynomial.Polynomial,
 ):
+    """_summary_
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    df_engines : pd.DataFrame
+        _description_
+    linear_fit : np.polynomial.Polynomial
+        _description_
+    polynomial_fit : np.polynomial.Polynomial
+        _description_
+    """
     
     # DATA PREPARATION ##########
 
