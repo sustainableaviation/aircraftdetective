@@ -2,3 +2,29 @@
 .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link {
     font-weight: bold;
 }
+
+/* 1. The main container for the table */
+.md-typeset .md-typeset__table {
+  max-height: 400px;  /* Set your desired max height */
+  overflow: auto;     /* This handles BOTH vertical and horizontal scrolling */
+}
+/* 2. The table element itself, ensures it can expand for horizontal scrolling */
+.md-typeset__table table {
+  width: auto;
+  min-width: 100%;
+}
+/* 3. The sticky table header cells */
+.md-typeset__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1; /* Ensures the header stays on top of the scrolling content */
+  background-color: var(--md-default-bg-color); /* Uses the theme's background color */
+}
+
+/* force tables to full width: https://github.com/squidfunk/mkdocs-material/discussions/3530#discussioncomment-2102941 */
+.md-typeset__table {
+  width: 100%;
+}
+.md-typeset__table table:not([class]) {
+  display: table
+}

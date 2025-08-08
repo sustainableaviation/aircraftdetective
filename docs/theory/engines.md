@@ -35,7 +35,6 @@ linear_fit = np.polynomial.Polynomial(
 y_linear_fit = linear_fit(x_fit)
 
 
-
 fig = px.scatter(
     df,
     x="TSFC (takeoff)",
@@ -86,6 +85,9 @@ fig.add_annotation(
 print(fig.to_html(full_html=False, include_plotlyjs="cdn"))
 ```
 
+{{ read_excel('_data/engine_calibration.xlsx', engine='openpyxl') }}
+
+
 ## Scaling
 
 ```python exec="true" html="true"
@@ -112,3 +114,5 @@ fig = px.scatter(
 
 print(fig.to_html(full_html=False, include_plotlyjs="cdn"))
 ```
+
+{{ read_excel('_data/calibrated_engine_data_icao.xlsx', engine='openpyxl') }}
