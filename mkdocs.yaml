@@ -12,6 +12,8 @@ nav:
   - API (Utilities):
     - Tabular: 'api/utility/tabular.md'
     - Statistics: 'api/utility/statistics.md'
+  - FAQ: 'faq.md'
+  - Changelog: 'changelog.md'
 theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
   name: material
   #custom_dir: docs/_overrides
