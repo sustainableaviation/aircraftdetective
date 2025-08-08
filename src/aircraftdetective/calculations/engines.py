@@ -198,7 +198,6 @@ def plot_takeoff_to_cruise_tsfc_ratio(
 
 def scale_engine_data_from_icao_emissions_database(
     path_excel_engine_data_icao_in: Path,
-    path_excel_engine_data_icao_out: Path,
     scaling_polynomial: np.polynomial.Polynomial
 ) -> pd.DataFrame:
     r"""
@@ -259,8 +258,8 @@ def scale_engine_data_from_icao_emissions_database(
         df=df_engines,
         return_only_renamed_columns=True,
         column_names_and_units=[
-            ("Engine Identification", "Engine Identification", str),
-            ("Final Test Date", "Final Test Date", float),
+            ("Engine Identification", "Engine Identification", "str"),
+            ("Final Test Date", "Final Test Date", "int"),
             ("Fuel Flow T/O (kg/sec)", "Fuel Flow (takeoff)", "pint[kg/s]"),
             ("Fuel Flow C/O (kg/sec)", "Fuel Flow (climbout)", "pint[kg/s]"),
             ("Fuel Flow App (kg/sec)", "Fuel Flow (approach)", "pint[kg/s]"),
@@ -278,10 +277,5 @@ def scale_engine_data_from_icao_emissions_database(
 
     df_engines['TSFC (cruise)'] = df_engines['TSFC (takeoff)'].apply(lambda x: scaling_polynomial(x))
     df_engines['TSFC (cruise)'] = df_engines['TSFC (cruise)'].astype("pint[g/(kN*s)]") # commonly used unit for TSFC
-
-    tabular.export_typed_dataframe_to_excel(
-        df=df_engines,
-        path=path_excel_engine_data_icao_out
-    )
 
     return df_engines
