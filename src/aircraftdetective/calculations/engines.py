@@ -244,7 +244,7 @@ def scale_engine_data_from_icao_emissions_database(
 
     See Also
     --------
-    - [`aircraftdetective.calculations.engines.determine_takeoff_to_cruise_tsfc_ratio`][]
+    - [`src.aircraftdetective.calculations.engines.determine_takeoff_to_cruise_tsfc_ratio`][]
     - [ICAO Aircraft Engine Emissions Databank](https://www.easa.europa.eu/en/domains/environment/icao-aircraft-engine-emissions-databank)
 
     Parameters
@@ -252,9 +252,6 @@ def scale_engine_data_from_icao_emissions_database(
     path_excel_engine_data_icao_in : str
         Path or URL to the ICAO Aircraft Engine Emissions Databank Excel file.
         Equivalent to parameter `io` in [`pandas.read_excel`](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html#pandas-read-excel).
-    path_excel_engine_data_icao_out : str
-        Path to save the scaled engine data Excel file.
-        Equivalent to parameter `excel_writer` in [`pandas.DataFrame.to_excel`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_excel.html).
     scaling_polynomial : np.polynomial.Polynomial
         [`numpy.polynomial.polynomial.Polynomial`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.html#numpy.polynomial.polynomial.Polynomial) Polynomial to scale TSFC (takeoff) to TSFC (cruise).
     """
