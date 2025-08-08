@@ -34,7 +34,7 @@ dependencies = [
     "pint-pandas",
     "pandas",
     "openpyxl",
-    "numpy"
+    "numpy",
     "matplotlib"
 ]
 
