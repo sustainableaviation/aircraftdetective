@@ -58,6 +58,9 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+aircraftdetective = ["data/USDOT/*.csv"]
+
 [tool.setuptools.dynamic]
 version = {attr = "aircraftdetective.__version__"} 
 readme = {file = "README.md"}
