@@ -11,6 +11,7 @@ nav:
     - Engines: 'api/engines.md'
     - Aerodynamics: 'api/aerodynamics.md'
     - Operations: 'api/operations.md'
+    - Decomposition: 'api/decomposition.md'
   - API (Utilities):
     - Tabular: 'api/utility/tabular.md'
     - Statistics: 'api/utility/statistics.md'
