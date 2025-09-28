@@ -8,6 +8,7 @@ from typing import Any
 def _compute_polynomials_from_dataframe(
     df: pd.DataFrame,
     col_name_x: str,
+    list_col_names_y: list[str],
     degree: int
 ) -> dict[str, Any]:
     r"""
@@ -57,10 +58,18 @@ def _compute_polynomials_from_dataframe(
     if len(df) <= degree:
         raise ValueError("number of data points must be greater than degree")
     
+    df_func = df.copy()
+
+    df_func.sort_values(by=col_name_x, ascending=True, inplace=True)
+    df_func.dropna(subset=[col_name_x], inplace=True)
+
     dict_polynomials = {}
-    for col in df.columns:
-        x = df[col_name_x].astype("float64")
-        y = df[col].astype("float64")
+    for col in list_col_names_y:
+        x_unfiltered = df_func[col_name_x].astype("float64")
+        y_unfiltered = df_func[col].astype("float64")
+        mask = y_unfiltered.notna() # ensure all NaNs are removed, otherwise the fit will fail
+        x = x_unfiltered[mask]
+        y = y_unfiltered[mask]
         polynomial_fit = np.polynomial.Polynomial.fit(
             x=x,
             y=y,
@@ -91,15 +100,27 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
     computes relative improvements in energy use, thrust-specific fuel consumption,
     weight per available seat and lift-to-drag ratio compared to the 1958 baseline.
-
     
+    OEW/Exit Limit is normalized regarding the heaviest value of each aircraft type:
+
+    | Type   | OEW/Exit Limit | Δ%(OEW/Exit Limit) | Comment                             |
+    |--------|----------------|--------------------|-------------------------------------|
+    | Narrow | 320            | ((320/320)-1)*100  | heaviest `narrow` aircraft in table |
+    | Narrow | 210            | ((210/321)-1)*100  |                                     |
+    | Wide   | 220            | ((220/220)-1)*100  | heaviest `wide` aircraft in table   |
+    | Wide   | 190            | ((190/220)-1)*100  |                                     |
+
     Notes
     -----
     Aircraft energy use $E_U$ as per Eqn. (4) in [Babikian et al. (2002)](https://doi.org/10.1016/S0969-6997(02)00020-0)
     is proportional to the product of thrust-specific fuel consumption,
     the weight weight per available seat and the lift-to-drag ratio:
     $$
-    E_U [\text{J/ASK}] \sim TSFC \times \frac{W}{pax} \times \bigg(\frac{L}{D}\bigg)^{-1} 
+    E_U [\text{J/ASK}] \propto TSFC \times \frac{W}{pax} \times \bigg(\frac{L}{D}\bigg)^{-1} 
+    $$
+    this can also be written as
+    $$
+    \eta_{tot} \propto \eta_{eng} \times \eta_{aero} \times \eta_{struct}
     $$
     
     abc
@@ -114,11 +135,12 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
     Warning
     -------
-    Since $l\D$ is in the denominator of the equation for $E_U$, its improvement
+    Since $L\D$ is in the denominator of the equation for $E_U$, the relative improvement
     is inverted before calculating the relative improvement:
     $$
     L/D_{improved} = 100 / (L/D_{1958} / L/D_{current})
     $$
+    Since $\eta_{eng}\propto TSFC^{-1}$ and $\eta_{aero}\propto (L/D)^{-1}$,
 
     Parameters
     ----------
@@ -129,6 +151,17 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     -------
     
     """
+
+    df_func = df.copy()
+    df_func.sort_values(by='YOI', ascending=True, inplace=True)
+
+    
+    df_func['EU'] = ((df_func['EU']/df_func['EU'].iloc[0])-1)*100
+    df_func['TSFC'] = (((1/df_func['TSFC'])/(1/df_func['TSFC'].iloc[0]))-1)*100
+    df_func['L/D'] = (((1/df_func['L/D'])/(1/df_func['L/D'].iloc[0]))-1)*100
+
+    return df_func
+
     
     
 
