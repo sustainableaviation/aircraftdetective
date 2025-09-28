@@ -90,26 +90,15 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     $$
     of relevant aircraft efficiency metrics.
 
-    $\eta$...
-
     Given a dataframe of the kind:
 
-    | YOI | EU | TSFC | OEW/Exit Limit | L/D |
-    |-----|----|------|----------------|-----|
-    | 1958| ...| ...  | ...            | ... |
+    | YOI | Type | EU  | TSFC | OEW/Exit Limit | L/D |
+    |-----|------|-----|------|----------------|-----|
+    | ... | ...  | ... | ...  | ...            | ... |
 
-    computes relative improvements in energy use, thrust-specific fuel consumption,
-    weight per available seat and lift-to-drag ratio compared to the 1958 baseline.
+    computes relative improvements in energy use (EU), thrust-specific fuel consumption (TSFC),
+    weight per available seat (OEW/Exit Limit) and lift-to-drag ratio (L/D) compared to the first year available in the dataframe.
     
-    OEW/Exit Limit is normalized regarding the heaviest value of each aircraft type:
-
-    | Type   | OEW/Exit Limit | Δ%(OEW/Exit Limit) | Comment                             |
-    |--------|----------------|--------------------|-------------------------------------|
-    | Narrow | 320            | ((320/320)-1)*100  | heaviest `narrow` aircraft in table |
-    | Narrow | 210            | ((210/321)-1)*100  |                                     |
-    | Wide   | 220            | ((220/220)-1)*100  | heaviest `wide` aircraft in table   |
-    | Wide   | 190            | ((190/220)-1)*100  |                                     |
-
     Notes
     -----
     Aircraft energy use $E_U$ as per Eqn. (4) in [Babikian et al. (2002)](https://doi.org/10.1016/S0969-6997(02)00020-0)
@@ -118,29 +107,54 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     $$
     E_U [\text{J/ASK}] \propto TSFC \times \frac{W}{pax} \times \bigg(\frac{L}{D}\bigg)^{-1} 
     $$
-    this can also be written as
+    where
+    
+    | Symbol         | Unit        | Description                                | 
+    |----------------|-------------|--------------------------------------------|
+    | $E_U$          | J/ASK       | Energy use per available seat kilometer    |
+    | $TSFC$         | N/(W·s)     | Thrust-specific fuel consumption           |
+    | $W/pax$        | N           | Weight per available seat (OEW/Exit Limit) |
+    | $L/D$          | -           | Lift-to-drag ratio                         |
+
+    this can also be written in terms of aircraft sub-efficiencies as:
     $$
     \eta_{tot} \propto \eta_{eng} \times \eta_{aero} \times \eta_{struct}
     $$
+    where
     
-    abc
-    $$
-    \Delta C = \Delta C_1 + \Delta C_2 + ... + \Delta C_n
-    $$
- 
-    This means that for the percentage change in aircraft energy use $\Delta E_U (t=T)$, we get:
-    $$
-    \Delta \% E_U(t=T) = \frac{E_U(t=T) - E_U(t=1958)}{E_U(t=1958)} \times 100 [\%]
-    $$
+    | Symbol          | Definition                             | Description            | 
+    |-----------------|----------------------------------------|------------------------|
+    | $\eta_{tot}$    | $\propto E_U^{-1}$                     | Total efficiency       |
+    | $\eta_{eng}$    | $\propto TSFC^{-1}$                    | Engine efficiency      |
+    | $\eta_{aero}$   | $\propto L/D$                          | Aerodynamic efficiency |
+    | $\eta_{struct}$ | $\propto (OEW/\text{Exit Limit})^{-1}$ | Structural efficiency  |
 
     Warning
     -------
-    Since $L\D$ is in the denominator of the equation for $E_U$, the relative improvement
-    is inverted before calculating the relative improvement:
+    Since, for example, $\eta_{aero}\propto L/D$, the relative improvement
+    is calculated as:
     $$
-    L/D_{improved} = 100 / (L/D_{1958} / L/D_{current})
+    \Delta\%(L/D) = \frac{(L/D)(t=T)-(L/D)(t=0)}{(L/D)(t=0)} \times 100 [\%]
     $$
-    Since $\eta_{eng}\propto TSFC^{-1}$ and $\eta_{aero}\propto (L/D)^{-1}$,
+    while for $\eta_{eng}\propto TSFC^{-1}$, the relative improvement is calculated as:
+    $$
+    \Delta\%(TSFC) = \frac{(TSFC)(t=T)-(TSFC)(t=0)}{(TSFC)(t=0)} \times 100 [\%]
+    $$
+    and thus a _decrease_ in TSFC results in an _increase_ in engine efficiency. 
+    
+    Also, OEW/Exit Limit is first normalized regarding the heaviest value of each aircraft type:
+
+    | Type   | OEW/Exit Limit | norm(OEW/Exit Limit) | Comment                             |
+    |--------|----------------|----------------------|-------------------------------------|
+    | Narrow | 320            | (320/320)            | heaviest `narrow` aircraft in table |
+    | Narrow | 210            | (210/321)            |                                     |
+    | Wide   | 220            | (220/220)            | heaviest `wide` aircraft in table   |
+    | Wide   | 190            | (190/220)            |                                     |
+
+    References
+    ----------
+    Babikian et al. (2002), "The historical fuel efficiency characteristics of regional aircraft from technological, operational, and cost perspectives",
+    _Journal of Air Transport Management_, doi:[10.1016/S0969-6997(02)00020-0](https://doi.org/10.1016/S0969-6997(02)00020-0)
 
     Parameters
     ----------
@@ -151,20 +165,27 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     -------
     
     """
-
+    list_required_columns = ['YOI', 'Type', 'EU', 'TSFC', 'OEW/Exit Limit', 'L/D']
+    for col in list_required_columns:
+        if col not in df.columns:
+            raise ValueError(f"Required column '{col}' not found in df columns")
+        if df[col].isnull().all():
+            raise ValueError(f"Column '{col}' cannot be all NaN")
+        if df[col].dtype not in [np.float64, np.int64]:
+            raise ValueError(f"Column '{col}' must be of numeric type")
+        
     df_func = df.copy()
     df_func.sort_values(by='YOI', ascending=True, inplace=True)
 
-    
+    df_func['OEW/Exit Limit'] = df_func.groupby('Type')['OEW/Exit Limit'].transform(lambda x: x / x.max())
+    df_func['OEW/Exit Limit'] = (((1/df_func['OEW/Exit Limit'])/(1/df_func['OEW/Exit Limit'].iloc[0]))-1)*100
     df_func['EU'] = ((df_func['EU']/df_func['EU'].iloc[0])-1)*100
     df_func['TSFC'] = (((1/df_func['TSFC'])/(1/df_func['TSFC'].iloc[0]))-1)*100
-    df_func['L/D'] = (((1/df_func['L/D'])/(1/df_func['L/D'].iloc[0]))-1)*100
+    df_func['L/D'] = ((df_func['L/D']/df_func['L/D'].iloc[0])-1)*100
 
     return df_func
 
     
-    
-
 def _compute_lmdi_factor_contributions(
     aggregate_t1: float,
     aggregate_t2: float,
@@ -188,10 +209,10 @@ def _compute_lmdi_factor_contributions(
     $$
     where
 
-    | Symbol | Unit     | Description        |
-    |--------|----------|--------------------|
-    | $C$    | -        | Efficiency         |
-    | $C_i$  | -        | Sub-efficiency $i$ |
+    | Symbol | Unit     | Description |
+    |--------|----------|-------------|
+    | $C$    | -        | aggregate   |
+    | $C_i$  | -        | factor $i$  |
     
     Notes
     -----
