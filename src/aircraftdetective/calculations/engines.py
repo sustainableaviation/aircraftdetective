@@ -39,7 +39,6 @@ def determine_takeoff_to_cruise_tsfc_ratio(
 
     Notes
     -----
-
     The Excel file must have a sheet named `Data` with at least the columns `[Engine Identification, TSFC (cruise), TSFC (takeoff)]`.
     The first row of the sheet must contain the column names.
     The second row must contain the units of the columns in square brackets `[]`, [in a format supported by Pint](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types).
