@@ -5,83 +5,6 @@ import numpy as np
 from aircraftdetective.utility.statistics import r_squared
 from typing import Any
 
-def _compute_polynomials_from_dataframe(
-    df: pd.DataFrame,
-    col_name_x: str,
-    list_col_names_y: list[str],
-    degree: int
-) -> dict[str, Any]:
-    r"""
-    Computes polynomial fits of a given degree for each column in a dataframe.
-
-    Given a dataframe with at least two columns, computes a polynomial fit of the specified degree
-    for each column against the specified x-axis column. Returns a dictionary containing the polynomial
-    fits and their corresponding R-squared values.
-
-    See Also
-    --------
-    [`numpy.polynomial.Polynomial.fit`](https://numpy.org/doc/2.0/reference/generated/numpy.polynomial.polynomial.Polynomial.fit.html)  
-    [`aircraftdetective.utility.statistics.r_squared`][]
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing the data for polynomial fitting.
-    col_name_x : str
-        Name of the column to be used as the x-axis for polynomial fitting.
-    degree : int
-        Degree of the polynomial to fit.
-    
-    Returns
-    -------
-    dict[str, Any]
-        A dictionary where keys are column names and values are the corresponding polynomial fits.  
-        Of the kind:  
-        ```
-        {
-            'Column1': Polynomial object,
-            'Column1_r2': float,
-            'Column2': Polynomial object,
-            'Column2_r2': float,
-            ...
-        }
-        ```
-    """
-    if not isinstance(df, pd.DataFrame):
-        raise ValueError("df must be a Pandas DataFrame")
-    if df.empty:
-        raise ValueError("df cannot be empty")
-    if col_name_x not in df.columns:
-        raise ValueError(f"col_name_x '{col_name_x}' not found in df columns")
-    if not isinstance(degree, int) or degree < 0:
-        raise ValueError("degree must be a non-negative integer")
-    if len(df) <= degree:
-        raise ValueError("number of data points must be greater than degree")
-    
-    df_func = df.copy()
-
-    df_func.sort_values(by=col_name_x, ascending=True, inplace=True)
-    df_func.dropna(subset=[col_name_x], inplace=True)
-
-    dict_polynomials = {}
-    for col in list_col_names_y:
-        x_unfiltered = df_func[col_name_x].astype("float64")
-        y_unfiltered = df_func[col].astype("float64")
-        mask = y_unfiltered.notna() # ensure all NaNs are removed, otherwise the fit will fail
-        x = x_unfiltered[mask]
-        y = y_unfiltered[mask]
-        polynomial_fit = np.polynomial.Polynomial.fit(
-            x=x,
-            y=y,
-            deg=degree,
-        )
-        r_squared_polynomial = r_squared(y, polynomial_fit(x))
-        dict_polynomials[col] = polynomial_fit
-        dict_polynomials[f'{col}_r2'] = r_squared_polynomial
-
-    return dict_polynomials
-      
-
 def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     Computes the relative improvement $\Delta\%x$ between times $t=0$ and $t=T$
@@ -159,11 +82,42 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing the aircraft sub-efficiency data.
-    
+        DataFrame containing the aircraft sub-efficiency data.  
+        Must contain at least the columns: `['YOI', 'Type', 'EU', 'TSFC', 'OEW/Exit Limit', 'L/D']`
+
     Returns
     -------
+    df : pd.DataFrame
+        DataFrame with additional columns for relative improvements in EU, TSFC, OEW/Exit Limit, and L/D.  
+        Of the kind:  
+        
+        | Delta%(EU) | Delta%(TSFC) | Delta%(OEW/Exit Limit) | Delta%(L/D) |
+        |------------|--------------|------------------------|-------------|
+        | ...        | ...          | ...                    | ...         |
+
+    Raises
+    ------
+    ValueError
+        If `df` is not a Pandas DataFrame, is empty, or does not contain the required columns.  
+        If any of the required columns contain only NaN values or are not of numeric type.
     
+    Example
+    -------
+    ```pyodide install='aircraftdetective'
+    import pandas as pd
+    from aircraftdetective.calculations.decomposition import _compute_efficiency_improvement_metrics
+    data = {
+        'YOI': [2000, 2005, 2010],
+        'Type': ['Narrow', 'Narrow', 'Wide'],
+        'EU': [50.0, 45.0, 40.0],
+        'TSFC': [0.6, 0.55, 0.5],
+        'OEW/Exit Limit': [300.0, 280.0, 250.0],
+        'L/D': [15.0, 16.0, 18.0]
+    }
+    df = pd.DataFrame(data)
+    df_improvements = _compute_efficiency_improvement_metrics(df)
+    print(df_improvements)
+    ```
     """
     list_required_columns = ['YOI', 'Type', 'EU', 'TSFC', 'OEW/Exit Limit', 'L/D']
     for col in list_required_columns:
@@ -183,9 +137,16 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df_func['TSFC'] = (((1/df_func['TSFC'])/(1/df_func['TSFC'].iloc[0]))-1)*100
     df_func['L/D'] = ((df_func['L/D']/df_func['L/D'].iloc[0])-1)*100
 
+    df_func.rename(columns={
+        'EU': 'Delta%(EU)',
+        'TSFC': 'Delta%(TSFC)',
+        'OEW/Exit Limit': 'Delta%(OEW/Exit Limit)',
+        'L/D': 'Delta%(L/D)'
+    }, inplace=True)
+
     return df_func
 
-    
+
 def _compute_lmdi_factor_contributions(
     aggregate_t1: float,
     aggregate_t2: float,
