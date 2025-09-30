@@ -1,5 +1,8 @@
 # Engine Efficiency Estimation
 
+Other datasets we can compare this to:  
+https://doi.org/10.7910/DVN/KC5Z8U
+
 ## Calibration
 
 ```python exec="true" html="true"
