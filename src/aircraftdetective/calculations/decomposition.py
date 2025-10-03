@@ -2,7 +2,7 @@
 import math
 import pandas as pd
 import numpy as np
-from aircraftdetective.utility.statistics import r_squared
+from aircraftdetective.utility.statistics import _r_squared
 from typing import Any
 
 def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:

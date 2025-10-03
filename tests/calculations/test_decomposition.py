@@ -1,15 +1,15 @@
 import pytest
 import math
 
-# Import the function from its source module
 from aircraftdetective.calculations.decomposition import (
-    _compute_lmdi_factor_contributions
+    _compute_lmdi_factor_contributions,
+    _compute_efficiency_improvement_metrics
 )
 
 
 class TestLmdiFactorContributions:
     """
-    Groups tests for the `_compute_lmdi_factor_contributions` function.
+    Test suite for the `_compute_lmdi_factor_contributions` function.
     """
 
     @pytest.mark.parametrize(
