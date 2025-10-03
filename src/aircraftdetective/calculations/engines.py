@@ -6,7 +6,10 @@ from pathlib import Path
 from aircraftdetective import ureg
 from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
-from aircraftdetective.utility.statistics import r_squared
+from aircraftdetective.utility.statistics import (
+    _r_squared,
+    _compute_polynomials_from_dataframe
+)
 from typing import Any
 import matplotlib.pyplot as plt
 
@@ -39,7 +42,6 @@ def determine_takeoff_to_cruise_tsfc_ratio(
 
     Notes
     -----
-
     The Excel file must have a sheet named `Data` with at least the columns `[Engine Identification, TSFC (cruise), TSFC (takeoff)]`.
     The first row of the sheet must contain the column names.
     The second row must contain the units of the columns in square brackets `[]`, [in a format supported by Pint](https://pint.readthedocs.io/en/stable/user/formatting.html#pint-format-types).
@@ -95,30 +97,13 @@ def determine_takeoff_to_cruise_tsfc_ratio(
     df_engines_grouped['TSFC (cruise)'] = df_engines_grouped['TSFC (cruise)'].astype("pint[g/(kN*s)]")
     df_engines_grouped['TSFC (takeoff)'] = df_engines_grouped['TSFC (takeoff)'].astype("pint[g/(kN*s)]")
 
-    x = df_engines_grouped['TSFC (takeoff)'].astype("float64")
-    y = df_engines_grouped['TSFC (cruise)'].astype("float64")
-
-    linear_fit = np.polynomial.Polynomial.fit(
-        x=x,
-        y=y,
-        deg=1,
+    return _compute_polynomials_from_dataframe(
+        df=df_engines_grouped,
+        col_name_x='TSFC (takeoff)',
+        list_col_names_y=['TSFC (cruise)'],
+        degree=2,
+        plot=False
     )
-    polynomial_fit = np.polynomial.Polynomial.fit(
-        x=x,
-        y=y,
-        deg=2,
-    )
-
-    r_squared_linear = r_squared(y, linear_fit(x))
-    r_squared_polynomial = r_squared(y, polynomial_fit(x))
-
-    return {
-        'df_engines': df_engines_grouped,
-        'pol_linear_fit': linear_fit,
-        'pol_quadratic_fit': polynomial_fit,
-        'r_squared_linear_fit': r_squared_linear,
-        'r_squared_quadratic_fit': r_squared_polynomial
-    }
 
 
 def plot_takeoff_to_cruise_tsfc_ratio(

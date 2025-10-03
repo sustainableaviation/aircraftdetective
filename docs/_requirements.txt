@@ -3,6 +3,9 @@ pymdown-extensions
 mkdocs-jupyter
 markdown-exec
 mkdocs-include-markdown-plugin
-plotly-express
 mkdocs-material
 mkdocs-table-reader-plugin
+# requirements for interactive figures
+plotly-express
+pandas
+aircraftdetective
