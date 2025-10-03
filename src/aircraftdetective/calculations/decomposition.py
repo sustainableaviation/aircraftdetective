@@ -1,9 +1,8 @@
 # %%
 import math
 import pandas as pd
-import numpy as np
 from aircraftdetective.utility.statistics import _r_squared
-from typing import Any
+
 
 def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     r"""
@@ -119,23 +118,36 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     print(df_improvements)
     ```
     """
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        raise ValueError("Input `df` must be a non-empty Pandas DataFrame.")
+
     list_required_columns = ['YOI', 'Type', 'EU', 'TSFC', 'OEW/Exit Limit', 'L/D']
     for col in list_required_columns:
         if col not in df.columns:
             raise ValueError(f"Required column '{col}' not found in df columns")
         if df[col].isnull().all():
             raise ValueError(f"Column '{col}' cannot be all NaN")
-        if df[col].dtype not in [np.float64, np.int64]:
-            raise ValueError(f"Column '{col}' must be of numeric type")
+        if col not in ['YOI', 'Type'] and not pd.api.types.is_numeric_dtype(df[col]):
+            raise ValueError(f"Column '{col}' must be of a numeric type.")
+
         
     df_func = df.copy()
     df_func.sort_values(by='YOI', ascending=True, inplace=True)
+    grouped = df_func.groupby('Type')
 
-    df_func['OEW/Exit Limit'] = df_func.groupby('Type')['OEW/Exit Limit'].transform(lambda x: x / x.max())
-    df_func['OEW/Exit Limit'] = (((1/df_func['OEW/Exit Limit'])/(1/df_func['OEW/Exit Limit'].iloc[0]))-1)*100
-    df_func['EU'] = ((df_func['EU']/df_func['EU'].iloc[0])-1)*100
-    df_func['TSFC'] = (((1/df_func['TSFC'])/(1/df_func['TSFC'].iloc[0]))-1)*100
-    df_func['L/D'] = ((df_func['L/D']/df_func['L/D'].iloc[0])-1)*100
+    metrics_inverse = {
+        'EU': True, # lower is better
+        'TSFC': True, # lower is better
+        'OEW/Exit Limit': True, # lower is better
+        'L/D': False # higher is better
+    }
+
+    for metric, is_inverse in metrics_inverse.items():
+        baseline = grouped[metric].transform('first')
+        if is_inverse:
+            df_func[metric] = ((baseline / df_func[metric]) - 1) * 100
+        else:
+            df_func[metric] = ((df_func[metric] / baseline) - 1) * 100
 
     df_func.rename(columns={
         'EU': 'Delta%(EU)',
