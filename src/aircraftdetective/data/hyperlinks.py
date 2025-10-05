@@ -3,3 +3,7 @@ PATH_ZENODO_ENGINE_DATABASE_FILE = r'/Users/michaelweinold/Library/CloudStorage/
 PATH_ZENODO_USDOT_T2_FILE = r'https://zenodo.org/records/17255995/files/05-10-2025_T_SCHEDULE_T2.csv?download=1'
 PATH_ZENODO_USDOT_ACFT_TYPES_FILE = r'https://zenodo.org/records/17255995/files/05-10-2025_L_AIRCRAFT_TYPES.csv?download=1'
 PATH_ZENODO_BABIKIAN_FILE = r'https://zenodo.org/records/14560914/files/Aircraft%20Efficiency%20Data%20Babikian%20et%20al%20(2002).xlsx?download=1'
+PATH_ZENODO_AIRCRAFT_DATABASE_AIRCRAFT_TYPES_FILE = r'https://zenodo.org/records/14524630/files/aircraft-types.json?download=1'
+PATH_ZENODO_AIRCRAFT_DATABASE_ENGINE_MODELS_FILE = r'https://zenodo.org/records/14524630/files/engine-models.json?download=1'
+PATH_ZENODO_AIRCRAFT_DATABASE_MANUFACTURERS_FILE = r'https://zenodo.org/records/14524630/files/manufacturers.json?download=1'
+PATH_ZENODO_AIRCRAFT_DATABASE_PROPERTIES_FILE = r'https://zenodo.org/records/14524630/files/properties.json?download=1'
