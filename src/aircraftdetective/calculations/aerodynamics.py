@@ -75,7 +75,7 @@ def compute_lift_to_drag_ratio(
     See Also
     --------
     - [Young (2018), eqn. (13.36)](https://doi.org/10.1002/9781118534786)
-    - [Martinez-Val et al. (2005), eqn. (4) for use of the correction factor $\beta$:](https://doi.org/10.2514/6.2005-121)
+    - [Martinez-Val et al. (2005), eqn. (4) for use of the correction factor $\beta$](https://doi.org/10.2514/6.2005-121)
 
     Parameters
     ----------
