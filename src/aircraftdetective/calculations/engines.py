@@ -217,3 +217,91 @@ def scale_engine_data_from_icao_emissions_database(
     df_engines['TSFC (cruise)'] = df_engines['TSFC (cruise)'].astype("pint[g/(kN*s)]") # commonly used unit for TSFC
 
     return df_engines
+
+
+def calculate_engine_efficiencies(
+    df: pd.DataFrame
+) -> pd.DataFrame:
+    r"""
+    Calculates the overall engine efficiency, propulsive efficiency and thermal efficiency 
+    for each engine in the provided DataFrame. The calculation combines multiple equations describing turbofan engine performance.
+    
+    Overall engine efficiency $\eta_0$ is defined as:
+    $$
+    \eta_0 = \frac{C_a}{TSFC} \frac{1}{Q}
+    $$
+    Propulsive efficiency $\eta_P$ is defined as:
+    $$
+    \eta_p = \frac{2}{1 + \frac{C_j}{C_a}}
+    $$
+    Since the exhaust jet velocity $C_j$ is not typically known,
+    the thrust equation
+    $$
+    F = m (C_j - C_a)
+    $$
+    is rearranged to solve for $C_j$:
+    $$
+    C_j = \frac{F}{m} + C_a
+    $$
+    which gives
+    $$
+    \eta_p = \frac{2}{2 + \frac{F}{m C_a}}
+    $$
+    Using a different definition for overall efficiency $\eta_0$:
+    $$
+    \eta_0 = \frac{FC_a}{m_fQ}
+    $$
+    net thrust $F$ can be obtained:
+    $$
+    F = \frac{\eta_0 m_f Q}{C_a}
+    $$
+    which for propulsive efficiency $\eta_P$ finally gives: 
+    $$
+    \eta_p = \frac{2}{2 + \frac{\eta_0 m_f Q}{m C_a^2}}
+    $$
+
+    | Symbol       | Units         | Description                                |
+    |--------------|---------------|--------------------------------------------|
+    | $\eta_0$     | dimensionless | Overall engine efficiency                  |
+    | $C_a$        | m/s           | Cruise speed = intake air velocity         |
+    | $C_j$        | m/s           | Jet velocity = exhaust air velocity        |
+    | $TSFC$       | kg/(N*s)      | Thrust-Specific Fuel Consumption at cruise |
+    | $m$          | kg/s          | Air mass flow rate                         |
+    | $m_f$        | kg/s          | Fuel mass flow rate                        |
+    | $F$          | N             | Net engine thrust                          |
+    | $Q$          | J/kg          | Fuel Heating Value                         |
+
+    Warnings
+    --------
+    In $F = \frac{\eta_0 m_f Q}{C_a}$, the fuel mass flow rate $m_f$
+    is assumed to be for _all_ engines of the aircraft. 
+    This means that air mass flow rate $m$ is also calculated for _all_ engines of the aircraft.
+
+    References
+    ----------
+    - Overall engine efficiency $\eta_0$: [Eqn. (3.5)-(3.7) in Saravanamuttoo et al. (2017)](http://books.google.com/books?vid=ISBN9781292093093)
+    - Propulsive efficiency $\eta_P$: [Eqn. (3.3) in Saravanamuttoo et al. (2017)](http://books.google.com/books?vid=ISBN9781292093093)
+    - Net engine thrust $F$: [Eqn. (3.1) in Saravanamuttoo et al. (2017)](http://books.google.com/books?vid=ISBN9781292093093)
+    
+    See Also
+    --------
+    - [Jet Fuel on Wikipedia](https://en.wikipedia.org/wiki/Aviation_fuel)
+    
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with a new column `Engine Efficiency` added.
+    """
+    
+    heatingvalue = 43.1e6 * ureg.joule / ureg.kg
+
+    df['Engine Efficiency'] = df['Cruise Speed'] / (heatingvalue * df['TSFC Cruise'])
+
+    df['Propulsive Efficiency'] = 2 / (2 + (df['Engine Efficiency'] * df['Fuel Flow'] * heatingvalue) / (df['Air Mass Flow'] * df['Cruise Speed']**2 * df['Number of Engines']))
+    
+    df['Thermal Efficiency'] = df['Engine Efficiency']/df['Propulsive Efficiency']
+    
+    df.loc[df['B/P Ratio']<=2, 'Thermal Efficiency'] = np.nan
+    df.loc[df['B/P Ratio']<=2, 'Propulsive Efficiency'] = np.nan
+    
+    return df
