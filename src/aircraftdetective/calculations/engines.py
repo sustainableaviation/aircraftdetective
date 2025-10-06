@@ -2,34 +2,41 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from typing import Any
+import matplotlib.pyplot as plt
 
 from aircraftdetective import ureg
 from aircraftdetective.utility import plotting
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import (
-    _r_squared,
     _compute_polynomials_from_dataframe
 )
-from typing import Any
-import matplotlib.pyplot as plt
+
+from aircraftdetective.data.hyperlinks import (
+    PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE,
+    PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE
+)
 
 
 def determine_takeoff_to_cruise_tsfc_ratio(
-    path_excel_engine_data_for_calibration: str
+    degree: int = 2,
+    plot: bool = False,
+    path_excel_engine_data_for_calibration: str = PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE,
 ) -> dict[str, Any]:
     r"""
     Given a path to an Excel file with engine TSFC data for takeoff and cruise,
     computes two fitted polynomials (linear and quadratic).
     Also returns the $R^2$ values for both fits and the cleaned DataFrame with engine data.
-
+    
+    A degree 1 polynomial (linear fit) is implemented as:
     $$
-    \begin{aligned}
-    TSFC_{cruise} &= \beta_0 + \beta_1 \cdot TSFC_{takeoff} + \epsilon \\
-    TSFC_{cruise} &= \beta_0 + \beta_1 \cdot TSFC_{takeoff} + \beta_2 \cdot TSFC_{takeoff}^2 + \epsilon
-    \end{aligned}
+    TSFC_{cruise} = \beta_0 + \beta_1 \cdot TSFC_{takeoff} + \epsilon
     $$
-
-    where
+    A degree 2 polynomial (quadratic fit) is implemented as:
+    $$
+    TSFC_{cruise} = \beta_0 + \beta_1 \cdot TSFC_{takeoff} + \beta_2 \cdot TSFC_{takeoff}^2 + \epsilon
+    $$
+    etc., where
 
     | Symbol           | Description                                      |
     |------------------|--------------------------------------------------|
@@ -57,8 +64,17 @@ def determine_takeoff_to_cruise_tsfc_ratio(
     See Also
     --------
     - [`numpy.polynomial.polynomial.Polynomial.fit()`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.fit.html)
+    - [`aircraftdetective.calculations.engines.scale_engine_data_from_icao_emissions_database`][]
+    
+    References
+    ----------
     - [Section 4.6.2 in Sadraey, 2nd Edition (2023)](https://doi.org/10.1201/9781003279068)
     - [Thrust-Specific Fuel Consumption on Wikipedia](https://en.wikipedia.org/wiki/Thrust-specific_fuel_consumption)
+
+    Notes
+    -----
+    With no parameters passed, the function will download the relevant Excel file 
+    from the [`aircraftdetective` Zenodo repository](https://doi.org/10.5281/zenodo.14382100).
 
     Parameters
     ----------
@@ -74,7 +90,12 @@ def determine_takeoff_to_cruise_tsfc_ratio(
     ------
     ValueError
         If the Excel file does not contain the required columns or units.
+    ValueError
+        If the degree parameter is not a positive integer.
     """
+    if not isinstance(degree, int) or degree < 1:
+        raise ValueError("degree must be a positive integer.")
+
     df_engines = pd.read_excel(
         io=path_excel_engine_data_for_calibration,
         sheet_name='Data',
@@ -101,111 +122,21 @@ def determine_takeoff_to_cruise_tsfc_ratio(
         df=df_engines_grouped,
         col_name_x='TSFC (takeoff)',
         list_col_names_y=['TSFC (cruise)'],
-        degree=2,
-        plot=False
+        degree=degree,
+        plot=plot
     )
-
-
-def plot_takeoff_to_cruise_tsfc_ratio(
-    df_engines: pd.DataFrame,
-    linear_fit: np.polynomial.Polynomial,
-    polynomial_fit: np.polynomial.Polynomial,
-):
-    """_summary_
-
-    _extended_summary_
-
-    Parameters
-    ----------
-    df_engines : pd.DataFrame
-        _description_
-    linear_fit : np.polynomial.Polynomial
-        _description_
-    polynomial_fit : np.polynomial.Polynomial
-        _description_
-    """
-    
-    # DATA PREPARATION ##########
-
-    df_engines = df_engines.copy()
-    df_engines = df_engines.pint.dequantify()
-
-    max_tsfc_takeoff = df_engines['TSFC (takeoff)'].max().item()
-    min_tsfc_takeoff = df_engines['TSFC (takeoff)'].min().item()
-
-    list_tsfc_takeoff = np.linspace(
-        start=min_tsfc_takeoff - 5,
-        stop=max_tsfc_takeoff + 5,
-        num=100
-    )
-    df_linear_fit = pd.DataFrame(
-        {
-            'TSFC (takeoff)': list_tsfc_takeoff,
-            'TSFC (cruise)': linear_fit(list_tsfc_takeoff)
-        }
-    )
-    df_polynomial_fit = pd.DataFrame(
-        {
-            'TSFC (takeoff)': list_tsfc_takeoff,
-            'TSFC (cruise)': polynomial_fit(list_tsfc_takeoff)
-        }
-    )
-
-    # SETUP ######################
-
-    fig, ax = plotting.set_figure_and_axes()
-
-    # AXIS LIMITS ################
-
-    #ax.set_xlim(5, 20)
-    #ax.set_ylim(12, 25)
-
-    # TICKS AND LABELS ###########
-
-    ax.set_xlabel('TSFC (takeoff) [g/kNs]')
-    ax.set_ylabel('TSFC (cruise) [g/kNs]')
-
-    # PLOTTING ###################
-
-    scatterplot = ax.scatter(
-        df_engines['TSFC (takeoff)'],
-        df_engines['TSFC (cruise)'],
-        marker='o',
-        edgecolor='k',
-        plotnonfinite=True # for NaN values
-    )
-    ax.plot(
-        df_linear_fit['TSFC (takeoff)'],
-        df_linear_fit['TSFC (cruise)'],
-        color='red',
-        linestyle='--',
-        label='Polynomial Fit'
-    )
-    ax.plot(
-        df_polynomial_fit['TSFC (takeoff)'],
-        df_polynomial_fit['TSFC (cruise)'],
-        color='blue',
-        linestyle='--',
-        label='Linear Fit'
-    )
-
-    # LEGEND ####################
-
-    fig.show()
 
 
 def scale_engine_data_from_icao_emissions_database(
-    path_excel_engine_data_icao_in: Path,
-    scaling_polynomial: np.polynomial.Polynomial
+    scaling_polynomial: np.polynomial.Polynomial,
+    path_excel_engine_data_icao_in: str = PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE,
 ) -> pd.DataFrame:
     r"""
     Given a path or URL to the ICAO Aircraft Engine Emissions Databank Excel file,
     scales the TSFC (takeoff) values to cruise using a provided polynomial.
-
     $$
     TSFC_{cruise} = f(TSFC_{takeoff})
     $$
-
     where $f$ is the scaling polynomial.
 
     Notes
@@ -229,7 +160,7 @@ def scale_engine_data_from_icao_emissions_database(
 
     See Also
     --------
-    - [`src.aircraftdetective.calculations.engines.determine_takeoff_to_cruise_tsfc_ratio`][]
+    - [`aircraftdetective.calculations.engines.determine_takeoff_to_cruise_tsfc_ratio`][]
     - [ICAO Aircraft Engine Emissions Databank](https://www.easa.europa.eu/en/domains/environment/icao-aircraft-engine-emissions-databank)
 
     Parameters
@@ -239,7 +170,19 @@ def scale_engine_data_from_icao_emissions_database(
         Equivalent to parameter `io` in [`pandas.read_excel`](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html#pandas-read-excel).
     scaling_polynomial : np.polynomial.Polynomial
         [`numpy.polynomial.polynomial.Polynomial`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.html#numpy.polynomial.polynomial.Polynomial) Polynomial to scale TSFC (takeoff) to TSFC (cruise).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with engine data and scaled TSFC (cruise) values.
+
+    Raises
+    ------
+    ValueError
+        If the provided scaling_polynomial is not a [`numpy.polynomial.polynomial.Polynomial`](https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.html#numpy.polynomial.polynomial.Polynomial) object.
     """
+    if not isinstance(scaling_polynomial, np.polynomial.Polynomial):
+        raise ValueError("scaling_polynomial must be a numpy Polynomial object.")
 
     df_engines = pd.read_excel(
         io=path_excel_engine_data_icao_in,

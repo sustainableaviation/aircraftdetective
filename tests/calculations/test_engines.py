@@ -11,48 +11,52 @@ from aircraftdetective.calculations.engines import (
     scale_engine_data_from_icao_emissions_database
 )
 
-
-def test_determine_takeoff_to_cruise_tsfc_ratio():
+class TestDetermineTakeoffToCruiseTsfcRatio:
     """
-    Tests the polynomial fitting for TSFC data by creating a temporary Excel file.
-    This test checks that the function returns a dictionary with the correct structure.
+    Test suite for the `determine_takeoff_to_cruise_tsfc_ratio` function.
     """
-    input_data = [
-        ['Engine Identification', 'TSFC (takeoff)', 'TSFC (cruise)'],
-        ['No Unit', 'g/(kN*s)', 'g/(kN*s)'],
-        ["Eng-A", 10, 18],
-        ["Eng-B", 12, 22],
-        ["Eng-C", 15, 28],
-        ["Eng-D", 18, 35]
-    ]
-    sample_df = pd.DataFrame(input_data)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        temp_path = Path(tmpdir) / "temp_tsfc_calibration.xlsx"
-        with pd.ExcelWriter(temp_path, engine='openpyxl') as writer:
-            sample_df.to_excel(writer, sheet_name='Data', index=False, header=False)
+    def test_with_default_data_and_valid_degrees(self):
+        """
+        Tests the polynomial fitting using the default data source with valid
+        degree parameters (1 and 2). This test requires network access.
+        """
 
-        result_dict = determine_takeoff_to_cruise_tsfc_ratio(
-            path_excel_engine_data_for_calibration=temp_path
-        )
+        result_linear = determine_takeoff_to_cruise_tsfc_ratio(degree=1)
 
-    expected_keys = [
-        'df_engines',
-        'pol_linear_fit',
-        'pol_quadratic_fit',
-        'r_squared_linear_fit',
-        'r_squared_quadratic_fit'
-    ]
+        assert isinstance(result_linear, dict)
+        expected_keys = [
+            'TSFC (cruise)',
+            'TSFC (cruise)_r2'
+        ]
+        assert all(key in result_linear for key in expected_keys)
+        poly_linear = result_linear['TSFC (cruise)']
+        assert isinstance(poly_linear, np.polynomial.Polynomial)
+        assert poly_linear.degree() == 1
+        assert isinstance(result_linear['TSFC (cruise)_r2'], float)
 
-    assert all(key in result_dict for key in expected_keys), "Result dictionary is missing expected keys"
+        result_quadratic = determine_takeoff_to_cruise_tsfc_ratio() # Uses degree=2 default
+        
+        assert isinstance(result_quadratic, dict)
+        assert all(key in result_quadratic for key in expected_keys)
+        poly_quadratic = result_quadratic['TSFC (cruise)']
+        assert isinstance(poly_quadratic, np.polynomial.Polynomial)
+        assert poly_quadratic.degree() == 2
+        assert isinstance(result_quadratic['TSFC (cruise)_r2'], float)
 
-    assert not result_dict['df_engines'].empty, "The returned DataFrame should not be empty"
-
-    assert isinstance(result_dict['pol_linear_fit'], np.polynomial.Polynomial), "Linear fit is not a Polynomial object"
-    assert isinstance(result_dict['pol_quadratic_fit'], np.polynomial.Polynomial), "Quadratic fit is not a Polynomial object"
-
-    assert isinstance(result_dict['r_squared_linear_fit'], float), "Linear R-squared is not a float"
-    assert isinstance(result_dict['r_squared_quadratic_fit'], float), "Quadratic R-squared is not a float"
+    def test_invalid_degree_raises_value_error(self):
+        """
+        Tests that the function raises ValueError for invalid `degree` parameters.
+        This check occurs before file access, so it does not require network access.
+        """
+        with pytest.raises(ValueError, match="degree must be a positive integer."):
+            determine_takeoff_to_cruise_tsfc_ratio(degree=0)
+        
+        with pytest.raises(ValueError, match="degree must be a positive integer."):
+            determine_takeoff_to_cruise_tsfc_ratio(degree=-5)
+            
+        with pytest.raises(ValueError, match="degree must be a positive integer."):
+            determine_takeoff_to_cruise_tsfc_ratio(degree=1.5)
 
 
 def test_scale_engine_data():
