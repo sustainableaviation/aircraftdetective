@@ -5,6 +5,7 @@ from aircraftdetective.processing.acftdb import (
     _read_manufacturers_database,
     _read_engine_database,
     _read_aircraft_database,
+    enrich_aircraft_database
 )
 
 def test_read_properties_database():
@@ -66,3 +67,39 @@ def test_read_aircraft_database():
     ]
     for col in expected_columns:
         assert col in aircraft_df.columns
+
+def test_enrich_aircraft_database():
+    enriched_df = enrich_aircraft_database()
+    assert isinstance(enriched_df, pd.DataFrame)
+    assert not enriched_df.empty
+    assert enriched_df.shape[0] == 3167
+    assert enriched_df.shape[1] == 27
+    expected_new_columns = [
+        'Aircraft Designation',
+        '_id_engine',
+        '_id_aircraft',
+        'Aircraft Manufacturer',
+        'Engine Count',
+        'Fuel Capacity [l]',
+        'MLW [kg]', 'MTOW [kg]',
+        'MTW [kg]', 'MZFW [kg]',
+        'MMO',
+        'Maximum Operating Altitude [ft]',
+        'OEW [kg]',
+        'Wing Area [m²]',
+        'Wingspan (Canard) [m]',
+        'Wingspan (winglets) [m]',
+        'Wingspan [m]',
+        'Height [m]',
+        'Engine Designation',
+        'Engine Family',
+        'Engine Manufacturer',
+        'Bypass Ratio',
+        'Overall Pressure Ratio',
+        'Dry Weight [kg]',
+        'Fan Diameter [m]',
+        'Max. Continuous Power [kW]',
+        'Max. Continuous Thrust [kN]',
+    ]
+    for col in expected_new_columns:
+        assert col in enriched_df.columns

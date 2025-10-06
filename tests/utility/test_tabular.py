@@ -7,7 +7,8 @@ from pandas.testing import assert_frame_equal
 from aircraftdetective.utility.tabular import (
     rename_columns_and_set_units,
     _return_short_units,
-    export_typed_dataframe_to_excel
+    export_typed_dataframe_to_excel,
+    merge_wildcard
 )
 
 @pytest.fixture
@@ -22,6 +23,8 @@ def sample_df() -> pd.DataFrame:
 
 
 class TestRenameColumnsAndSetUnits:
+    """Test suite for the `rename_columns_and_set_units` function."""
+
     def test_rename_and_set_units_keep_all_columns(self, sample_df):
         """
         Tests basic renaming and unit conversion, keeping all columns.
@@ -179,6 +182,8 @@ class TestRenameColumnsAndSetUnits:
 
 
 class TestReturnShortUnits:
+    """Test suite for the `_return_short_units` function."""
+
     @pytest.mark.parametrize(
         "input_dtype, expected_output",
         [
@@ -233,9 +238,7 @@ def sample_typed_df() -> pd.DataFrame:
 
 
 class TestExportTypedDataFrameToExcel:
-    """
-    Groups all tests for the export_typed_dataframe_to_excel function.
-    """
+    """Test suite for the  export_typed_dataframe_to_excel` function."""
 
     def test_excel_export_content_and_format(self, sample_typed_df, tmp_path):
         """
@@ -244,26 +247,15 @@ class TestExportTypedDataFrameToExcel:
         2. A second row with the correct short units.
         3. The correct dequantified data below the unit row.
         """
-        # --- Arrange ---
-        # Define the path for the output file inside pytest's temp directory
         output_path = tmp_path / "test_export.xlsx"
 
-        # --- Act ---
-        # Call the function to create the Excel file
         export_typed_dataframe_to_excel(sample_typed_df, output_path)
 
-        # --- Assert ---
-        # 1. Check that the file was actually created
         assert output_path.exists()
 
-        # 2. Read the file back in to verify its contents.
-        # We need to read the headers and data separately.
-        # Read the unit row (the first data row in the file, index 0)
         units_df = pd.read_excel(output_path, sheet_name='Data', header=0, nrows=1)
-        # Read the actual data, skipping the unit row
         data_df = pd.read_excel(output_path, sheet_name='Data', header=0, skiprows=[1])
 
-        # 3. Verify the units row
         expected_units = {
             "Year": ["a"], # 'a' is the short unit for year (annum)
             "Thrust": ["kN"],
@@ -272,13 +264,69 @@ class TestExportTypedDataFrameToExcel:
         expected_units_df = pd.DataFrame(expected_units)
         assert_frame_equal(units_df, expected_units_df)
 
-        # 4. Verify the data portion
-        # Create the expected dequantified data frame
         expected_data = sample_typed_df.pint.dequantify()
         expected_data.columns = expected_data.columns.droplevel(1)
         
-        # FIX: Cast columns to match how pandas reads them from Excel
         expected_data['Year'] = expected_data['Year'].astype('int64')
         expected_data['Thrust'] = expected_data['Thrust'].astype('float64')
         
         assert_frame_equal(data_df, expected_data)
+
+
+
+class TestMergeWildcard:
+    """Test suite for the `merge_wildcard` function."""
+
+    @pytest.fixture(scope="class")
+    def sample_dataframes(self):
+        """
+        Provides a comprehensive set of DataFrames to test all scenarios:
+        1. A left key with a wildcard that finds multiple matches ('CFM56-5*').
+        2. A left key without a wildcard that has an exact match in the right
+           DataFrame ('GE90-115B'). This should be ignored by the logic.
+        3. A left key with a wildcard that finds no matches ('NonExistent*').
+        """
+        df_left = pd.DataFrame({
+            'Designation': ['CFM56-5*', 'GE90-115B', 'NonExistent*'],
+            'Aircraft': ['A320 Family', 'B777', 'Concept'],
+        })
+
+        df_right = pd.DataFrame({
+            'Engine': ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5B1', 'GE90-115B'],
+            'Thrust_kN': [111, 120, 133, 514],
+            'Manufacturer': ['CFM', 'CFM Intl', 'CFM', 'GE']
+        })
+        
+        return df_left, df_right
+
+    def test_merge_wildcard_scenarios(self, sample_dataframes):
+        """
+        A single comprehensive test to verify all behaviors of the function:
+        - Correctly aggregates a successful wildcard match.
+        - Ignores a non-wildcard row for matching.
+        - Handles a wildcard row that finds no matches.
+        """
+        df_left, df_right = sample_dataframes
+
+        result_df = merge_wildcard(
+            df_left=df_left,
+            df_right=df_right,
+            left_on='Designation',
+            right_on='Engine'
+        )
+
+        expected_data = {
+            'Designation': ['CFM56-5*', 'GE90-115B', 'NonExistent*'],
+            'Aircraft': ['A320 Family', 'B777', 'Concept'],
+            # 1. 'CFM56-5*': Aggregated from 3 matches. Thrust is mean(111, 120, 133).
+            # 2. 'GE90-115B': Ignored for matching, so Thrust is NaN.
+            # 3. 'NonExistent*': Wildcard finds no matches, so Thrust is NaN.
+            'Thrust_kN': [(111 + 120 + 133) / 3, np.nan, np.nan],
+            # 1. 'CFM56-5*': Manufacturer is the 'first' of the matches ('CFM').
+            # 2. 'GE90-115B': Ignored, so Manufacturer is NaN.
+            # 3. 'NonExistent*': No matches, so Manufacturer is NaN.
+            'Manufacturer': ['CFM', np.nan, np.nan]
+        }
+        expected_df = pd.DataFrame(expected_data)
+
+        assert_frame_equal(result_df, expected_df)

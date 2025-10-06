@@ -368,3 +368,33 @@ def _read_aircraft_database(
     ).first()
     
     return df_grouped
+
+
+def enrich_aircraft_database(
+    path_json_aircraft_database: str = PATH_ZENODO_AIRCRAFT_DATABASE_AIRCRAFT_TYPES_FILE,
+    path_json_engine_database: str = PATH_ZENODO_AIRCRAFT_DATABASE_ENGINE_MODELS_FILE,
+    path_json_properties: str = PATH_ZENODO_AIRCRAFT_DATABASE_PROPERTIES_FILE,
+    path_json_manufacturers: str = PATH_ZENODO_AIRCRAFT_DATABASE_MANUFACTURERS_FILE,
+) -> pd.DataFrame:
+    r"""
+    Enriches the aircraft database with engine properties by merging the aircraft and engine databases
+    from the [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
+    (discontinued as of 01-2024).
+
+    ADD MORE DESCRIPTION HERE
+    """
+    df_aircraft = _read_aircraft_database(
+        path_json_aircraft_database=path_json_aircraft_database,
+    )
+    df_engines = _read_engine_database(
+        path_json_engine_database=path_json_engine_database,
+        dict_properties=_read_properties_database(path_json_properties=path_json_properties),
+        dict_manufacturers=_read_manufacturers_database(path_json_manufacturers=path_json_manufacturers),
+    )
+    df_aircraft_enriched = pd.merge(
+        left=df_aircraft,
+        right=df_engines,
+        how='left',
+        on='_id_engine',
+    )
+    return df_aircraft_enriched

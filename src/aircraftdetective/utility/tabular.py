@@ -155,3 +155,106 @@ def export_typed_dataframe_to_excel(
         index=False,
         engine='openpyxl',
     )
+
+
+def merge_wildcard(
+    df_left: pd.DataFrame,
+    df_right: pd.DataFrame,
+    left_on: str,
+    right_on: str,
+) -> pd.DataFrame:
+    """
+    Given two DataFrames, merges them on columns that may contain wildcard characters.  
+    Rows are aggregated by taking the mean of all matching rows.
+
+    For a left dataframe of the form:
+
+    | Engine Designation | ... |
+    |--------------------|-----|
+    | CFM56-5*           | ... |
+
+    and a right dataframe of the form:
+
+    | Engine Designation | Thrust (kN) | Non-Numeric Column |
+    |--------------------|-------------|--------------------|
+    | CFM56-5A1          | 60          | Foo                |
+    | CFM56-5A2          | 62          | Bar                |
+    | CFM56-5A3          | 64          | Baz                |
+
+    the function returns a merged dataframe of the form:
+
+    | Engine Designation | ... | Thrust (kN)  | Non-Numeric Column |
+    |--------------------|-----|--------------|--------------------|
+    | CFM56-5*           | ... | (60+62+64)/3 | Foo                |
+
+    Notes
+    -----
+    Wildcard characters are supported in the left DataFrame only.
+
+    See Also
+    --------
+    [`pandas.DataFrame.merge`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html)
+
+    Parameters
+    ----------
+    df_left : pd.DataFrame
+        Left DataFrame to merge.
+    df_right : pd.DataFrame
+        Right DataFrame to merge.
+    left_on : str
+        Column name in the left DataFrame to merge on.
+    right_on : str
+        Column name in the right DataFrame to merge on.
+
+    Returns
+    -------
+    pd.DataFrame
+        Merged DataFrame.
+    """
+    if left_on not in df_left.columns:
+        raise KeyError(f"'{left_on}' not in left DataFrame columns")
+    if right_on not in df_right.columns:
+        raise KeyError(f"'{right_on}' not in right DataFrame columns")
+
+    df_l = df_left.copy()
+    df_r = df_right.copy()
+
+    left_keys: list = df_l[left_on].drop_duplicates().tolist()
+    right_keys: list = df_r[right_on].drop_duplicates().tolist()
+
+    dict_matching = {}
+    for key in left_keys:
+        if isinstance(key, str) and '*' in key: # eg. 'CFM56-5*'
+            pattern = key.split('*')[0] # eg. 'CFM56-5'
+            matching_rights = [ # eg. ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']
+                rk for rk
+                in right_keys
+                if isinstance(rk, str)
+                and rk.startswith(pattern)
+            ]
+            dict_matching[key] = matching_rights # eg. {'CFM56-5*': ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']}
+
+    for key in dict_matching.keys():
+        df_r.loc[
+            df_r[right_on].isin(dict_matching[key]),
+            'key_wildcard'
+        ] = key
+
+    numeric_cols = df_r.select_dtypes(include='number').columns
+    object_cols = df_r.select_dtypes(exclude='number').columns.drop([right_on, 'key_wildcard'], errors='ignore')
+
+    agg_rules = {col: 'mean' for col in numeric_cols}
+    agg_rules.update({col: 'first' for col in object_cols})
+
+    if not agg_rules:
+        df_r_agg = pd.DataFrame({'key_wildcard': list(dict_matching.keys())}).set_index('key_wildcard')
+    else:
+        df_r_agg = df_r.groupby('key_wildcard').agg(agg_rules)
+
+    return pd.merge(
+        left=df_l,
+        right=df_r_agg,
+        how='left',
+        left_on=left_on,
+        right_on='key_wildcard',
+    )
