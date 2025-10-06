@@ -292,6 +292,17 @@ def calculate_engine_efficiencies(
     pd.DataFrame
         DataFrame with a new column `Engine Efficiency` added.
     """
+    required_columns = [
+        'Cruise Speed',
+        'TSFC Cruise',
+        'Fuel Flow',
+        'Air Mass Flow',
+        'Number of Engines',
+        'B/P Ratio'
+    ]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
     
     heatingvalue = 43.1e6 * ureg.joule / ureg.kg
 

@@ -12,6 +12,8 @@ from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_BABIKIAN_FILE
 )
 
+from aircraftdetective.processing.acftdb import _read_engine_database
+
 df = pd.read_excel(
     io=PATH_ZENODO_AIRCRAFT_DATABASE_FILE,
     sheet_name='Raw Data',
@@ -29,3 +31,5 @@ df_babikian = pd.read_excel(
 )
 df_babikian = df_babikian.pint.quantify(level=-1)
 df_babikian = df_babikian[df_babikian['Aircraft Designation'].notna() & (df_babikian['Aircraft Designation'] != '???')]
+
+df_engines = _read_engine_database()
