@@ -48,7 +48,7 @@ The `aircraftdetective` package fills this gap as the first comprehensive Python
 
 # Auxiliary Functions
 
-The `jetfuelburn` package includes helper functions for basic problems in atmospheric physics, such as computation of airspeed from mach number based on ambient pressure.
+The `aircraftdetective` package includes helper functions for basic problems in atmospheric physics, such as computation of airspeed from mach number based on ambient pressure.
 
 # Interactive Documentation
 
