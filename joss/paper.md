@@ -10,6 +10,10 @@ authors:
     orcid: 0000-0003-4859-2650
     equal-contrib: false
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
+  - name: Russell McKenna
+    equal-contrib: false # (This is how you can denote equal contributions between multiple authors)
+    orcid: 0000-0001-6758-482X
+    affiliation: "1, 2"
 affiliations:
  - name: Laboratory for Energy Systems Analysis, PSI Centers for Nuclear Engineering \& Sciences and Energy \& Environmental Sciences, Villigen, Switzerland
    index: 1
@@ -22,39 +26,33 @@ bibliography: paper.bib
 
 # Summary
 
-`aircraftdetective` is a Python package that implements different methods for calculating the fuel burn of commercial passenger aircraft. It is designed to be used in the context of environmental impact assessment of air travel, aircraft performance analysis and optimisation. It supports calculations in physical units, allowing for quick conversion between imperial and metric units and dimensionality checks of function inputs. It is lightweight (<40kB packaged) and has only a single dependency (`pint`), therefore allowing for easy integration into WebAssembly kernels for interactive use in the browser. The package is open-source and distributed under a permissive MIT license. Interactive documentation is available, which allows users to compute fuel burn directly in the browser without the need to install the package locally.
+`aircraftdetective` is a Python package that allows users to compute the overall energy efficiency and different sub-efficiencies of commercial aircraft, based on publicly available data. It is designed to be used in the context of environmental impact assessment of air travel and energy systems analysis. It supports calculations in physical units, allowing for quick conversion between imperial and metric units and dimensionality checks of function inputs. It is lightweight (<40kB packaged) and relies only dependencies which are compatible with [the Pyodide distribution](https://pyodide.org/en/stable/), therefore allowing for easy integration into WebAssembly kernels for interactive use in the browser. The package is open-source and distributed under a permissive MIT license. Interactive documentation is available, which allows users to compute aircraft efficiency in the browser without the need to install the package locally.
 
 # Statement of Need
 
-The environmental assessment of air travel has received increasing attention in the context of efforts to decarbonize transportation. In this context, life-cycle assessment has emerged as the primary method used to evaluate the magnitude of environmental burdens [@keiser2023life]. In air travel specifically, it has been shown that _"The most important life sequence is the use sequence, which makes up over 99\% of emission for every aircraft."_ [@jakovljevic2018carbon, P.865]. Robust methods for computing two key parameters are therefore central to any reliable evaluation of the environmental impact of air travel: The fuel burn of the aircraft itself and the environmental burdens associated with fuel production.
+The overall environmental impact of air transport can be described through the widely used Kaya identity [@delbecq2023sustainable, Sec.3]:
 
-Aerospace engineering researchers have proposed numerous methods for estimating commercial aircraft fuel burn, yet few are implemented in accessible, lightweight Python packages. Sun’s 2022 OpenAP package [@sun2022openap] is a standout, offering an innovative and user-friendly solution for fuel burn modeling. However, there is still no tool for comparative analysis of different models. The `jetfuelburn` package fills this gap as the first comprehensive Python package for comparing different aircraft fuel burn models from peer-reviewed publications. Tailored for environmental impact assessments, aircraft performance analysis, and optimization, it enhances existing calculators.
+$$
+CO_2 = P \times \frac{E}{P} \times \frac{S}{E} \times \frac{C}{S} \times \frac{CO_2}{C}
+$$
+
+where \(P\) is the number of passengers, \(E\) is the energy consumption, \(S\) is the revenue seat-kilometers, and \(C\) is the fuel consumption. Aircraft efficiency in turn is determined by the product of several sub-efficiencies, including the load factor, the operational efficiency, the aerodynamic efficiency, and the propulsion efficiency [@lee2004aircraft].
+
+(WHY IS IT IMPORTANT TO KNOW THIS?)
+
+"The historical development of these two figures of merit provides a benchmark from which the impacts of environmental improvements on growth can be assessed  and a basis for outlining the technological and operational features that determine the substitution rate of capital for operating costs across the air transport system."_ [@lee2001historical, P.168-169].
+
+Robust methods for computing two key parameters are therefore central to any reliable evaluation of the environmental impact of air travel: The fuel burn of the aircraft itself and the environmental burdens associated with fuel production.
+
+Two publications have first provided comprehensive data on the efficiency of the global aircraft fleet [@babikian2002historical] and [@lee2004aircraft] is a standout, offering an innovative and user-friendly solution for fuel burn modeling. However, the methods described in these publications still rely on for comparative analysis of different models. This data was first used in the earlier publication Lee et al. (2001) in Figure 10. It is frequently reproduced, most prominently as Figure 7.2 in the 2009 IEA report Transport, Energy and CO2 (see file Figure 7-2 IEA (2009).pdf, reproduced under CC BY 4.0).
+
+The `aircraftdetective` package fills this gap as the first comprehensive Python package for computing the efficiency of commercial aircraft from publicly available information. While the a dataset is provided in [@weinold_zenodo_aircraftdetective_2025], users are free to use more recent data. It will extend other models or integrated assessment models, such as AeroMAPS [@planes2023aeromaps]
 
 \clearpage
 
-# Fuel Calculation Model Categories
-
-The `jetfuelburn` package includes different methods for calculating fuel burn of commercial aircraft. These methods can be broadly categorized into four groups:
-
-## Payload/Range Diagrams
-
-As an initial estimate, the fuel burn of aircraft can be "read off" payload/range diagrams directly [@burzlaff2017aircraft]. The `jetfuelburn` package includes a dedicated method for this purpose.
-
-## Range Equation
-
-If some basic aircraft performance parameters are known, the Breguet range equation is a good model for estimating fuel consumption in cruise [@young2017performance, Sec. 13.7.3]. The `jetfuelburn` package includes a dedicated method this purpose.
-
-## Reduced Order Models
-
-If access to propriatary aircraft performance simulation software is available, fuel burn for specific aircraft missions can be simulated with high resolution. However, these simulations can be computationally expensive. Reduced order models instead use regression to extract a simplified model from a large set of high resolution simulation results. While the simulations may include many aircraft and mission parameters, reduced order models only require a few key parameter, such as payload and range. Publications implemented in the initial version of `jetfuelburn` include [@young2017performance][@dray2019aim2015][@seymour2020fuel][@yanto2017efficient][@lee2010closed].
-
-## Statistical Models
-
-If only a statistical average of fuel burn per passenger-kilometer or ton-kilometer is required, data from the US Department of Transportation (DOT) can be used ("Form 41, Schedule T-100, Table T2"). The `jetfuelburn` package includes a method for this purpose.
-
 # Auxiliary Functions
 
-The `jetfuelburn` package includes helper functions for basic problems in atmospheric physics, such as computation of airspeed from mach number based on ambient pressure. In addition, the package includes a module for the allocation of fuel burn to different cabin classes (economy, business, etc.) according to the current approach of both [IATA]((https://web.archive.org/web/20230526103741/https://www.iata.org/contentassets/139d686fa8f34c4ba7a41f7ba3e026e7/iata-rp-1726_passenger-co2.pdf)) and [ICAO]((https://web.archive.org/web/20240826103513/https://applications.icao.int/icec/Methodology%20ICAO%20Carbon%20Emissions%20Calculator_v13_Final.pdf)).
+The `jetfuelburn` package includes helper functions for basic problems in atmospheric physics, such as computation of airspeed from mach number based on ambient pressure.
 
 # Interactive Documentation
 
