@@ -30,25 +30,21 @@ bibliography: paper.bib
 
 # Statement of Need
 
-The overall environmental impact of air transport can be described through the widely used Kaya identity [@delbecq2023sustainable, Sec.3]:
+The total carbon emissions of passenger air transport can be described through a framework based on the _Kaya identity_ [@delbecq2023sustainable, Sec.3]:
 
 $$
-CO_2 = P \times \frac{E}{P} \times \frac{S}{E} \times \frac{C}{S} \times \frac{CO_2}{C}
+CO_2 = \frac{CO_2}{E} \times \frac{E}{RPK} \times RPK
 $$
 
-where \(P\) is the number of passengers, \(E\) is the energy consumption, \(S\) is the revenue seat-kilometers, and \(C\) is the fuel consumption. Aircraft efficiency in turn is determined by the product of several sub-efficiencies, including the load factor, the operational efficiency, the aerodynamic efficiency, and the propulsion efficiency [@lee2004aircraft].
+where $E$ is the energy used for transport in the form of fuel and $RPK$ is the amount of revenue-passenger kilometers flown \(S\). Aircraft efficiency $e/RPK$ is in turn determined by the product of several sub-efficiencies, including the operational efficiency, the aerodynamic efficiency, and the propulsion efficiency [@lee2004aircraft].
 
-(WHY IS IT IMPORTANT TO KNOW THIS?)
+_"The historical development of (...)_ [the technological and operational efficiency metrics] _provides a benchmark from which the impacts of environmental improvements on growth can be assessed  and a basis for outlining the technological and operational features that determine the substitution rate of capital for operating costs across the air transport system."_ [@lee2001historical, P.168-169].
 
-"The historical development of these two figures of merit provides a benchmark from which the impacts of environmental improvements on growth can be assessed  and a basis for outlining the technological and operational features that determine the substitution rate of capital for operating costs across the air transport system."_ [@lee2001historical, P.168-169].
+Therefore, robust methods for computing aircraft efficiency are central to evaluating the past and future environmental and economic performance of aircraft.
 
-Robust methods for computing two key parameters are therefore central to any reliable evaluation of the environmental impact of air travel: The fuel burn of the aircraft itself and the environmental burdens associated with fuel production.
-
-Two publications have first provided comprehensive data on the efficiency of the global aircraft fleet [@babikian2002historical] and [@lee2004aircraft] is a standout, offering an innovative and user-friendly solution for fuel burn modeling. However, the methods described in these publications still rely on for comparative analysis of different models. This data was first used in the earlier publication Lee et al. (2001) in Figure 10. It is frequently reproduced, most prominently as Figure 7.2 in the 2009 IEA report Transport, Energy and CO2 (see file Figure 7-2 IEA (2009).pdf, reproduced under CC BY 4.0).
+Lee et al.\ [@lee2001historical][@lee2004aircraft] and Babikian et al.\ [@babikian2002historical] between 2001-2004 were the first to provide comprehensive data on the efficiency of the global aircraft fleet. The data and trends presented in their work, have been highly influential and are frequently reproduced, most prominently in the 2009 IEA report _Transport, Energy and CO2_ [@international2009transport]. However, the methods used by these authors to  
 
 The `aircraftdetective` package fills this gap as the first comprehensive Python package for computing the efficiency of commercial aircraft from publicly available information. While the a dataset is provided in [@weinold_zenodo_aircraftdetective_2025], users are free to use more recent data. It will extend other models or integrated assessment models, such as AeroMAPS [@planes2023aeromaps]
-
-\clearpage
 
 # Auxiliary Functions
 
@@ -57,6 +53,8 @@ The `jetfuelburn` package includes helper functions for basic problems in atmosp
 # Interactive Documentation
 
 The package documentation allows users to compute fuel burn directly in the browser, without the need to install the package locally. This is achieved through the use of a [Pyodide](https://pyodide.org/en/stable/) Web Assembly Python kernel. The interactive documentation is available at [jetfuelburn.readthedocs.io](https://aircraftdetective.readthedocs.io).
+
+\clearpage
 
 # Acknowledgements
 
