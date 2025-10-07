@@ -157,6 +157,86 @@ def export_typed_dataframe_to_excel(
     )
 
 
+def update_column_data(
+    df_main: pd.DataFrame,
+    df_other: pd.DataFrame,
+    merge_column: str,
+    list_columns: list[str],
+) -> pd.DataFrame:
+    """_summary_
+
+    _extended_summary_
+
+    Given a first DataFrame of the kind:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) |               |
+    | B737-200C            | (...) | 0.5           |
+    | A380-800             | (...) |               |
+
+    and a second DataFrame of the kind:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) | 0.6           |
+    | A380-800             | (...) | 0.7           |
+
+    and a list of columns to update:
+
+    list_columns = ['TSFC (cruise)']
+
+    and a merge column:
+
+    merge_column = 'Aircraft Designation'
+
+    the function will update the first DataFrame with the values from the second DataFrame:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) | 0.6           |
+    | B737-200C            | (...) | 0.5           |
+    | A380-800             | (...) | 0.7           |
+
+
+    Parameters
+    ----------
+    df_main : pd.DataFrame
+        _description_
+    df_other : pd.DataFrame
+        _description_
+    merge_column : str
+        _description_
+    list_columns : list[str]
+        _description_
+
+    See Also
+    --------
+    - [GitHub Issues/PR at `pint-pandas`](https://github.com/hgrecco/pint-pandas/pull/247)
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
+    df_main_updated = pd.merge(
+        left=df_main,
+        right=df_other[list_columns + [merge_column]],
+        on=merge_column,
+        how='left',
+        suffixes=('', '_update')
+    )
+
+    for col in list_columns:
+        df_main_updated[col] = df_main_updated[f"{col}_update"].astype(float).fillna(
+            df_main_updated[col].astype(float)
+        ).astype(df_main_updated[col].dtype)
+
+    df_main_updated = df_main_updated.drop(columns=[f"{col}_update" for col in list_columns])
+
+    return df_main_updated
+
+
 def left_merge_wildcard(
     df_left: pd.DataFrame,
     df_right: pd.DataFrame,
