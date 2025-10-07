@@ -5,10 +5,13 @@ import numpy as np
 import numpy.testing as npt
 import tempfile
 from pathlib import Path
+from aircraftdetective import ureg
+import math
 
 from aircraftdetective.calculations.engines import (
     determine_takeoff_to_cruise_tsfc_ratio,
-    scale_engine_data_from_icao_emissions_database
+    scale_engine_data_from_icao_emissions_database,
+    calculate_air_mass_flow_rate
 )
 
 class TestDetermineTakeoffToCruiseTsfcRatio:
@@ -103,3 +106,93 @@ def test_scale_engine_data():
         expected_tsfc_cruise_mag,
         err_msg="Scaled TSFC (cruise) value is incorrect"
     )
+
+
+@pytest.fixture
+def sample_engine_df() -> pd.DataFrame:
+    """Provides a sample DataFrame with engine data and pint units."""
+    data = {
+        'Engine': ['Engine A', 'Engine B'],
+        'Cruise Speed': [250 * ureg('m/s'), 240 * ureg('m/s')],
+        'Fan Diameter': [3.4 * ureg('meter'), 3.2 * ureg('meter')],
+    }
+    return pd.DataFrame(data)
+
+class TestCalculateAirMassFlowRate:
+    """Test suite for the `calculate_air_mass_flow_rate` function."""
+
+    def test_calculates_correctly_at_default_altitude(self, sample_engine_df):
+        """
+        Tests if the function calculates the correct air mass flow rate at the
+        default altitude of 12000 meters.
+        """
+        # At 12000m, our model function gives a density of ~0.3119 kg/m^3
+        
+        # Expected calculations
+        # Engine A: 0.31 * 250 * pi * (3.4/2)^2 = 708.3 kg/s
+        # Engine B: 0.31 * 240 * pi * (3.2/2)^2 = 600.3 kg/s
+        expected_flow_a = (0.31 * 250 * ureg('m/s') * math.pi * (3.4 * ureg.meter / 2)**2).to('kg/s')
+        expected_flow_b = (0.31 * 240 * ureg('m/s') * math.pi * (3.2 * ureg.meter / 2)**2).to('kg/s')
+        
+        result_df = calculate_air_mass_flow_rate(sample_engine_df)
+        
+        # Check that the results are approximately equal
+        assert result_df['Air Mass Flow'].iloc[0].magnitude == pytest.approx(expected_flow_a.magnitude)
+        assert result_df['Air Mass Flow'].iloc[1].magnitude == pytest.approx(expected_flow_b.magnitude)
+        assert result_df['Air Mass Flow'].iloc[0].units == ureg.kilogram / ureg.second
+
+    def test_calculates_correctly_at_sea_level(self, sample_engine_df):
+        """
+        Tests the calculation with a different altitude (sea level) to ensure
+        the density change is correctly handled.
+        """
+        # At 0m (sea level), density is ~1.225 kg/m^3
+        air_density = _calculate_atmospheric_conditions(0 * ureg.meter)['density']
+        
+        # Expected calculation for Engine A at sea level
+        expected_flow = (air_density * 250 * ureg('m/s') * math.pi * (3.4 * ureg.meter / 2)**2).to('kg/s')
+
+        result_df = calculate_air_mass_flow_rate(sample_engine_df, altitude=0 * ureg.meter)
+        
+        assert result_df['Air Mass Flow'].iloc[0].magnitude == pytest.approx(expected_flow.magnitude)
+        assert result_df['Air Mass Flow'].iloc[0].units == ureg.kilogram / ureg.second
+
+    def test_input_dataframe_is_not_modified(self, sample_engine_df):
+        """
+        Tests that the original input DataFrame is not mutated by the function,
+        as it should operate on a copy.
+        """
+        df_original = sample_engine_df.copy()
+        calculate_air_mass_flow_rate(df_original)
+        
+        # The original DataFrame should not have the 'Air Mass Flow' column
+        assert 'Air Mass Flow' not in df_original.columns
+        pd.testing.assert_frame_equal(df_original, sample_engine_df)
+
+    def test_missing_required_columns_raises_keyerror(self, sample_engine_df):
+        """
+        Tests that a KeyError is raised if essential columns are missing.
+        """
+        df_no_speed = sample_engine_df.drop(columns=['Cruise Speed'])
+        with pytest.raises(KeyError):
+            calculate_air_mass_flow_rate(df_no_speed)
+            
+        df_no_diameter = sample_engine_df.drop(columns=['Fan Diameter'])
+        with pytest.raises(KeyError):
+            calculate_air_mass_flow_rate(df_no_diameter)
+
+    def test_empty_dataframe_returns_empty_with_new_column(self):
+        """
+        Tests that passing an empty DataFrame results in an empty DataFrame
+        with the new column added.
+        """
+        empty_df = pd.DataFrame({
+            'Cruise Speed': pd.Series(dtype='object'),
+            'Fan Diameter': pd.Series(dtype='object')
+        })
+        
+        result_df = calculate_air_mass_flow_rate(empty_df)
+        
+        assert result_df.empty
+        assert 'Air Mass Flow' in result_df.columns
+        assert list(result_df.columns) == ['Cruise Speed', 'Fan Diameter', 'Air Mass Flow']

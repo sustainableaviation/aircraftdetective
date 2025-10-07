@@ -250,7 +250,8 @@ def calculate_air_mass_flow_rate(
 
     Warnings
     --------
-    Air density $\rho(h)$ is dependent on altitude $h$.
+    Air density $\rho(h)$ is dependent on altitude $h$. 
+    The default altitude is 12'000 meters, but can be changed via the `altitude` parameter.
 
     See Also
     --------

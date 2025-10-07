@@ -13,11 +13,9 @@ def _calculate_atmospheric_conditions(altitude: float) -> dict[float, float]:
     <img src="https://upload.wikimedia.org/wikipedia/commons/a/a8/International_Standard_Atmosphere.svg" width="250">
 
     Temperature in the Troposphere is calculated according to:
-
     $$
         T=T_0 - L * h
     $$
-
     in the lower Stratosphere, it is simply -56.5°C.
 
     where:
@@ -30,11 +28,9 @@ def _calculate_atmospheric_conditions(altitude: float) -> dict[float, float]:
     | $h$    | [length]              | altitude                            | N/A          |
 
     Density is calculated using the _exponential approximation_:
-
     $$
     \rho = \rho_0 * e^{-\frac{g*h}{R*T}}
     $$
-
     where:
 
     | Symbol  | Dimension             | Description                         | Value        |
