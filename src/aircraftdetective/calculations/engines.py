@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 from typing import Any
 import matplotlib.pyplot as plt
+import math
 
 from aircraftdetective import ureg
 from aircraftdetective.utility import plotting
@@ -11,6 +12,7 @@ from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import (
     _compute_polynomials_from_dataframe
 )
+from aircraftdetective.utility.physics import _calculate_atmospheric_conditions
 
 from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE,
@@ -217,6 +219,60 @@ def scale_engine_data_from_icao_emissions_database(
     df_engines['TSFC (cruise)'] = df_engines['TSFC (cruise)'].astype("pint[g/(kN*s)]") # commonly used unit for TSFC
 
     return df_engines
+
+    models4['Air Mass Flow [kg/s]'] = (air_density* flight_vel * math.pi * models4['Fan diameter,float,metre']**2)/4
+
+
+def calculate_air_mass_flow_rate(
+    df: pd.DataFrame,
+    altitude: float = 12000.0 * ureg.meter,
+) -> pd.DataFrame:
+    r"""
+    Calculates the air mass flow rate for each engine in the provided DataFrame.
+    
+    Air mass flow rate $m$ is defined as:
+    $$
+    m = r^2 \pi C_a \rho(h)
+    $$
+    as a dimensionality analysis shows:
+    $$
+    [kg/s] = [m^2][m/s][kg/m^3] = [m^3/s][kg/m^3]
+    $$
+    where
+    
+    | Symbol       | Units         | Description                                |
+    |--------------|---------------|--------------------------------------------|
+    | $m$          | kg/s          | Air mass flow rate                         |
+    | $\rho$       | kg/m³         | Air density                                |
+    | $C_a$        | m/s           | Cruise speed = intake air velocity         |
+    | $r$          | m             | Fan radius                                 |
+    | $h$          | m             | Altitude                                   |
+
+    Warnings
+    --------
+    Air density $\rho(h)$ is dependent on altitude $h$.
+
+    See Also
+    --------
+    - [Mass Flow Rate on Wikipedia](https://en.wikipedia.org/wiki/Mass_flow_rate#Air_mass_flow_rate)
+    - [`aircraftdetective.utility.physics._calculate_atmospheric_conditions`][]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with engine data. Must contain the columns `Cruise Speed` and `Fan Diameter`.
+    altitude : float [distance], optional
+        Altitude above sea level, by default 12000.0 * ureg.meter   
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with a new column `Air Mass Flow` added.
+    """
+    df_func = df.copy()
+    air_density = _calculate_atmospheric_conditions(altitude)['density']
+    df_func['Air Mass Flow'] = (air_density * df['Cruise Speed'] * math.pi * (df['Fan Diameter']/2)**2)
+    return df_func
 
 
 def calculate_engine_efficiencies(
