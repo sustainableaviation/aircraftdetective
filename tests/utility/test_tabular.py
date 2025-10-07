@@ -8,7 +8,7 @@ from aircraftdetective.utility.tabular import (
     rename_columns_and_set_units,
     _return_short_units,
     export_typed_dataframe_to_excel,
-    merge_wildcard
+    left_merge_wildcard
 )
 
 @pytest.fixture
@@ -273,9 +273,8 @@ class TestExportTypedDataFrameToExcel:
         assert_frame_equal(data_df, expected_data)
 
 
-
 class TestMergeWildcard:
-    """Test suite for the `merge_wildcard` function."""
+    """Test suite for the `left_merge_wildcard` function."""
 
     @pytest.fixture(scope="class")
     def sample_dataframes(self):
@@ -299,7 +298,7 @@ class TestMergeWildcard:
         
         return df_left, df_right
 
-    def test_merge_wildcard_scenarios(self, sample_dataframes):
+    def test_left_merge_wildcard_scenarios(self, sample_dataframes):
         """
         A single comprehensive test to verify all behaviors of the function:
         - Correctly aggregates a successful wildcard match.
@@ -308,7 +307,7 @@ class TestMergeWildcard:
         """
         df_left, df_right = sample_dataframes
 
-        result_df = merge_wildcard(
+        result_df = left_merge_wildcard(
             df_left=df_left,
             df_right=df_right,
             left_on='Designation',
@@ -321,11 +320,11 @@ class TestMergeWildcard:
             # 1. 'CFM56-5*': Aggregated from 3 matches. Thrust is mean(111, 120, 133).
             # 2. 'GE90-115B': Ignored for matching, so Thrust is NaN.
             # 3. 'NonExistent*': Wildcard finds no matches, so Thrust is NaN.
-            'Thrust_kN': [(111 + 120 + 133) / 3, np.nan, np.nan],
+            'Thrust_kN': [(111 + 120 + 133) / 3, 514.0, np.nan],
             # 1. 'CFM56-5*': Manufacturer is the 'first' of the matches ('CFM').
             # 2. 'GE90-115B': Ignored, so Manufacturer is NaN.
             # 3. 'NonExistent*': No matches, so Manufacturer is NaN.
-            'Manufacturer': ['CFM', np.nan, np.nan]
+            'Manufacturer': ['CFM', 'GE', np.nan]
         }
         expected_df = pd.DataFrame(expected_data)
 

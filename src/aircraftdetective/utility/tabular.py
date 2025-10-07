@@ -157,7 +157,7 @@ def export_typed_dataframe_to_excel(
     )
 
 
-def merge_wildcard(
+def left_merge_wildcard(
     df_left: pd.DataFrame,
     df_right: pd.DataFrame,
     left_on: str,
@@ -172,6 +172,7 @@ def merge_wildcard(
     | Engine Designation | ... |
     |--------------------|-----|
     | CFM56-5*           | ... |
+    | V2500-A1           | ... |
 
     and a right dataframe of the form:
 
@@ -180,12 +181,14 @@ def merge_wildcard(
     | CFM56-5A1          | 60          | Foo                |
     | CFM56-5A2          | 62          | Bar                |
     | CFM56-5A3          | 64          | Baz                |
+    | V2500-A1           | 100         | Qux                |
 
     the function returns a merged dataframe of the form:
 
     | Engine Designation | ... | Thrust (kN)  | Non-Numeric Column |
     |--------------------|-----|--------------|--------------------|
     | CFM56-5*           | ... | (60+62+64)/3 | Foo                |
+    | V2500-A1           | ... | 100          | Qux                |
 
     Notes
     -----
@@ -233,6 +236,8 @@ def merge_wildcard(
                 and rk.startswith(pattern)
             ]
             dict_matching[key] = matching_rights # eg. {'CFM56-5*': ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']}
+        else:
+            dict_matching[key] = [key] # eg. {'V2500-A1': ['V2500-A1']}
 
     for key in dict_matching.keys():
         df_r.loc[

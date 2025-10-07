@@ -2,6 +2,7 @@
 from pathlib import Path
 import pandas as pd
 from aircraftdetective import ureg
+from aircraftdetective.utility.tabular import rename_columns_and_set_units
 
 from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_AIRCRAFT_DATABASE_AIRCRAFT_TYPES_FILE,
@@ -201,7 +202,7 @@ def _read_engine_database(
     Returns
     -------
     pd.DataFrame
-        DataFrame with the engine models and their properties.
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with the engine models and their properties.  
     """
 
     df = pd.read_json(path_json_engine_database)
@@ -224,21 +225,22 @@ def _read_engine_database(
         axis=1
     )
 
-    dict_column_names = {
-        'id': '_id_engine',
-        'name': 'Engine Designation',
-        'engineFamily': 'Engine Family',
-        'manufacturer': 'Engine Manufacturer',
-        'Bypass Ratio': 'Bypass Ratio',
-        'Overall Pressure Ratio': 'Overall Pressure Ratio',
-        'Dry Weight [kg]': 'Dry Weight [kg]',
-        'Fan Diameter [m]': 'Fan Diameter [m]',
-        'Max. Continuous Power [kW]': 'Max. Continuous Power [kW]',
-        'Max. Continuous Thrust [kN]': 'Max. Continuous Thrust [kN]',
-    }
-
-    df = df.rename(columns=dict_column_names)
-    df = df[dict_column_names.values()]
+    df = rename_columns_and_set_units(
+        df=df,
+        column_names_and_units=[
+            ('id', '_id_engine', 'str'),
+            ('name', 'Engine Designation', 'str'),
+            ('engineFamily', 'Engine Family', 'str'),
+            ('manufacturer', 'Engine Manufacturer', 'str'),
+            ('Bypass Ratio', 'Bypass Ratio', 'pint[dimensionless]'),
+            ('Overall Pressure Ratio', 'Overall Pressure Ratio', 'pint[dimensionless]'),
+            ('Dry Weight [kg]', 'Dry Weight', 'pint[kg]'),
+            ('Fan Diameter [m]', 'Fan Diameter', 'pint[m]'),
+            ('Max. Continuous Power [kW]', 'Max. Continuous Power', 'pint[kW]'),
+            ('Max. Continuous Thrust [kN]', 'Max. Continuous Thrust', 'pint[kN]'),
+        ],
+        return_only_renamed_columns=True,
+    )
 
     df_grouped = df.groupby(
         by='Engine Designation',
@@ -310,7 +312,7 @@ def _read_aircraft_database(
     Returns
     -------
     pd.DataFrame
-        _description_
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with the aircraft models and their properties.
     """
 
     df = pd.read_json(path_json_aircraft_database)
@@ -335,29 +337,30 @@ def _read_aircraft_database(
         axis=1
     )
 
-    dict_column_names = {
-        'id': '_id_aircraft',
-        'engineModels': '_id_engine',
-        'manufacturer': 'Aircraft Manufacturer',
-        'name': 'Aircraft Designation',
-        'engineCount': 'Engine Count',
-        'Fuel Capacity [L]': 'Fuel Capacity [l]',
-        'Mlw [kg]': 'MLW [kg]',
-        'Mtow [kg]': 'MTOW [kg]',
-        'Mtw [kg]': 'MTW [kg]',
-        'Mzfw [kg]': 'MZFW [kg]',
-        'Mmo': 'MMO',
-        'Maximum Operating Altitude [ft]': 'Maximum Operating Altitude [ft]',
-        'Oew [kg]': 'OEW [kg]',
-        'Wing Area [m2]': 'Wing Area [m²]',
-        'Wingspan (Canard) [m]': 'Wingspan (Canard) [m]',
-        'Wingspan (Winglets) [m]': 'Wingspan (winglets) [m]',
-        'Wingspan [m]': 'Wingspan [m]',
-        'Height [m]': 'Height [m]',
-    }
-
-    df = df.rename(columns=dict_column_names)
-    df = df[dict_column_names.values()]
+    df = rename_columns_and_set_units(
+        df=df,
+        column_names_and_units=[
+            ('id', '_id_aircraft', 'str'),
+            ('name', 'Aircraft Designation', 'str'),
+            ('manufacturer', 'Aircraft Manufacturer', 'str'),
+            ('engineModels', '_id_engine', 'str'),
+            ('engineCount', 'Engine Count', 'Int64'),
+            ('Fuel Capacity [L]', 'Fuel Capacity', 'pint[l]'),
+            ('Mlw [kg]', 'MLW', 'pint[kg]'),
+            ('Mtow [kg]', 'MTOW', 'pint[kg]'),
+            ('Mtw [kg]', 'MTW', 'pint[kg]'),
+            ('Mzfw [kg]', 'MZFW', 'pint[kg]'),
+            ('Mmo', 'MMO', 'pint[dimensionless]'),
+            ('Maximum Operating Altitude [ft]', 'Maximum Operating Altitude', 'pint[ft]'),
+            ('Oew [kg]', 'OEW', 'pint[kg]'),
+            ('Wing Area [m²]', 'Wing Area', 'pint[m**2]'),
+            ('Wingspan (Canard) [m]', 'Wingspan (Canard)', 'pint[m]'),
+            ('Wingspan (Winglets) [m]', 'Wingspan (winglets)', 'pint[m]'),
+            ('Wingspan [m]', 'Wingspan', 'pint[m]'),
+            ('Height [m]', 'Height', 'pint[m]'),
+        ],
+        return_only_renamed_columns=True,
+    )
 
     df_grouped = df.groupby(
         by=[

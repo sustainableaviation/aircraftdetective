@@ -13,7 +13,7 @@ from aircraftdetective.data.hyperlinks import (
 )
 
 from aircraftdetective.processing.acftdb import _read_engine_database
-from aircraftdetective.utility.tabular import merge_wildcard
+from aircraftdetective.utility.tabular import left_merge_wildcard
 
 df = pd.read_excel(
     io=PATH_ZENODO_AIRCRAFT_DATABASE_FILE,
@@ -35,10 +35,9 @@ df_babikian = df_babikian[df_babikian['Aircraft Designation'].notna() & (df_babi
 
 df_engines = _read_engine_database()
 
-pd.merge(
-    left=df,
-    right=df_engines,
+merged_wildcard = left_merge_wildcard(
+    df_left=df,
+    df_right=df_engines,
     left_on='Engine Designation',
     right_on='Engine Designation',
 )
-
