@@ -53,6 +53,7 @@ df_merged = left_merge_wildcard(
     right_on='Engine Identification',
 )
 
+
 df_merged = left_merge_wildcard(
     df_left=df_merged,
     df_right=df_engines,
@@ -67,6 +68,28 @@ export_typed_dataframe_to_excel(df=df_merged, path='out.xlsx')
 #%%
 
 from aircraftdetective.calculations.engines import (
-    calculate_air_mass_flow_rate
+    calculate_air_mass_flow_rate,
+    calculate_engine_efficiencies
 )
 
+df_merged = calculate_air_mass_flow_rate(df_merged)
+
+# %%
+
+from aircraftdetective.processing.usdot import process_data_usdot_t2
+
+df_t2 = process_data_usdot_t2()
+
+df_with_dot = pd.merge(
+    how='left',
+    left=df_merged,
+    right=df_t2,
+    left_on='Aircraft Designation (US DOT Schedule T2)',
+    right_on='Aircraft Designation (US DOT Schedule T2)'
+)
+
+# %%
+
+from aircraftdetective.calculations.engines import calculate_engine_efficiencies
+calculate_engine_efficiencies(df=df_with_dot)
+# %%

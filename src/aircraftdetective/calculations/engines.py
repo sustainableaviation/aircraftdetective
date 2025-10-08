@@ -363,7 +363,7 @@ def calculate_engine_efficiencies(
     """
     required_columns = [
         'Cruise Speed',
-        'TSFC Cruise',
+        'TSFC (cruise)',
         'Fuel Flow',
         'Air Mass Flow',
         'Number of Engines',
@@ -373,9 +373,9 @@ def calculate_engine_efficiencies(
     if missing_columns:
         raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
     
-    heatingvalue = 43.1e6 * ureg.joule / ureg.kg
+    heatingvalue = 34.7*1E6 * ureg.J / ureg.l # https://en.wikipedia.org/wiki/Jet_fuel
 
-    df['Engine Efficiency'] = df['Cruise Speed'] / (heatingvalue * df['TSFC Cruise'])
+    df['Engine Efficiency'] = df['Cruise Speed'] / (heatingvalue * df['TSFC (cruise)'])
 
     df['Propulsive Efficiency'] = 2 / (2 + (df['Engine Efficiency'] * df['Fuel Flow'] * heatingvalue) / (df['Air Mass Flow'] * df['Cruise Speed']**2 * df['Number of Engines']))
     

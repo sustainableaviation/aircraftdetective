@@ -13,8 +13,8 @@ from aircraftdetective.data.hyperlinks import (
 )
 
 def process_data_usdot_t2(
-    path_csv_t2: Path,
-    path_csv_aircraft_types: Path | None = None
+    path_csv_t2: str = PATH_ZENODO_USDOT_T2_FILE,
+    path_csv_aircraft_types: str = PATH_ZENODO_USDOT_ACFT_TYPES_FILE
 ) -> pd.DataFrame:
     """
     Given a CSV file containing the T2 data from Form 41 Schedule T-100, 
