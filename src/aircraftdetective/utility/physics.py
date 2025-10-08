@@ -1,4 +1,5 @@
-from aircraftdetective import ureg
+import pint
+ureg = pint.get_application_registry()
 import math
 
 @ureg.check(

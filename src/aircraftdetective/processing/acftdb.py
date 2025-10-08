@@ -1,7 +1,8 @@
 # %%
 from pathlib import Path
 import pandas as pd
-from aircraftdetective import ureg
+import pint
+ureg = pint.get_application_registry()
 from aircraftdetective.utility.tabular import rename_columns_and_set_units
 
 from aircraftdetective.data.hyperlinks import (
@@ -236,7 +237,6 @@ def _read_engine_database(
             ('Overall Pressure Ratio', 'Overall Pressure Ratio', 'pint[dimensionless]'),
             ('Dry Weight [kg]', 'Dry Weight', 'pint[kg]'),
             ('Fan Diameter [m]', 'Fan Diameter', 'pint[m]'),
-            ('Max. Continuous Power [kW]', 'Max. Continuous Power', 'pint[kW]'),
             ('Max. Continuous Thrust [kN]', 'Max. Continuous Thrust', 'pint[kN]'),
         ],
         return_only_renamed_columns=True,

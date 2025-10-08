@@ -1,13 +1,11 @@
 # %%
 import pandas as pd
 import numpy as np
-from pathlib import Path
 from typing import Any
-import matplotlib.pyplot as plt
 import math
 
-from aircraftdetective import ureg
-from aircraftdetective.utility import plotting
+import pint
+ureg = pint.get_application_registry()
 from aircraftdetective.utility import tabular
 from aircraftdetective.utility.statistics import (
     _compute_polynomials_from_dataframe
@@ -16,7 +14,8 @@ from aircraftdetective.utility.physics import _calculate_atmospheric_conditions
 
 from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE,
-    PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE
+    PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE,
+    PATH_ZENODO_ENGINE_CONCORDANCE_FILE
 )
 
 
@@ -261,7 +260,9 @@ def calculate_air_mass_flow_rate(
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with engine data. Must contain the columns `Cruise Speed` and `Fan Diameter`.
+        DataFrame with engine data.  
+        Must contain the columns:  
+        `Cruise Speed`, `Fan Diameter`.
     altitude : float [distance], optional
         Altitude above sea level, by default 12000.0 * ureg.meter   
 
@@ -270,7 +271,18 @@ def calculate_air_mass_flow_rate(
     pd.DataFrame
         DataFrame with a new column `Air Mass Flow` added.
     """
+    if df.empty:
+        raise ValueError("DataFrame is empty.")
+    required_columns = [
+        'Cruise Speed',
+        'Fan Diameter',
+    ]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise KeyError(f"DataFrame is missing required columns: {missing_columns}")
+    
     df_func = df.copy()
+
     air_density = _calculate_atmospheric_conditions(altitude)['density']
     df_func['Air Mass Flow'] = (air_density * df['Cruise Speed'] * math.pi * (df['Fan Diameter']/2)**2)
     return df_func
@@ -373,3 +385,4 @@ def calculate_engine_efficiencies(
     df.loc[df['B/P Ratio']<=2, 'Propulsive Efficiency'] = np.nan
     
     return df
+

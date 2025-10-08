@@ -2,6 +2,7 @@
 import pandas as pd
 import pint
 import pint_pandas
+ureg = pint.get_application_registry()
 from pathlib import Path
 from aircraftdetective import ureg
 import importlib.resources as pkg_resources

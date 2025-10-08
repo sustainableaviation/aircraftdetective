@@ -1,3 +1,7 @@
+import pandas as pd
+import pint
+ureg = pint.get_application_registry()
+
 def process_data_babikian_figures(
     path_xlsx_babikian: Path,
 ) -> pd.DataFrame:

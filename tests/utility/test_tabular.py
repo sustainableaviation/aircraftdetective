@@ -11,19 +11,20 @@ from aircraftdetective.utility.tabular import (
     left_merge_wildcard
 )
 
-@pytest.fixture
-def sample_df() -> pd.DataFrame:
-    data = {
-        "Engine ID": ["A1", "B2"],
-        "Fuel Flow (kg/s)": [25.1, 26.2],
-        "Pressure Ratio": [1.5, 1.6],
-        "Extra Data": [100, 200]
-    }
-    return pd.DataFrame(data)
-
 
 class TestRenameColumnsAndSetUnits:
     """Test suite for the `rename_columns_and_set_units` function."""
+
+    @pytest.fixture
+    def sample_df(self) -> pd.DataFrame:
+        """This fixture is now a method of the test class."""
+        data = {
+            "Engine ID": ["A1", "B2"],
+            "Fuel Flow (kg/s)": [25.1, 26.2],
+            "Pressure Ratio": [1.5, 1.6],
+            "Extra Data": [100, 200]
+        }
+        return pd.DataFrame(data)
 
     def test_rename_and_set_units_keep_all_columns(self, sample_df):
         """
@@ -227,18 +228,17 @@ class TestReturnShortUnits:
         assert result == expected_output
 
 
-@pytest.fixture
-def sample_typed_df() -> pd.DataFrame:
-    data = {
-        "Year": pd.Series([1999, 2005, 2012], dtype="pint[year]"),
-        "Thrust": pd.Series([150.5, 165.2, 180.0], dtype="pint[kilonewton]"),
-        "Comment": pd.Series(["Initial", "Mid-life", "Final"], dtype="object"),
-    }
-    return pd.DataFrame(data)
-
-
 class TestExportTypedDataFrameToExcel:
     """Test suite for the  export_typed_dataframe_to_excel` function."""
+
+    @pytest.fixture
+    def sample_typed_df(self) -> pd.DataFrame:
+        data = {
+            "Year": pd.Series([1999, 2005, 2012], dtype="pint[year]"),
+            "Thrust": pd.Series([150.5, 165.2, 180.0], dtype="pint[kilonewton]"),
+            "Comment": pd.Series(["Initial", "Mid-life", "Final"], dtype="object"),
+        }
+        return pd.DataFrame(data)
 
     def test_excel_export_content_and_format(self, sample_typed_df, tmp_path):
         """
@@ -280,10 +280,36 @@ class TestMergeWildcard:
     def sample_dataframes(self):
         """
         Provides a comprehensive set of DataFrames to test all scenarios:
+
         1. A left key with a wildcard that finds multiple matches ('CFM56-5*').
         2. A left key without a wildcard that has an exact match in the right
            DataFrame ('GE90-115B'). This should be ignored by the logic.
         3. A left key with a wildcard that finds no matches ('NonExistent*').
+
+        The left DataFrame:
+
+        | Designation  | Aircraft     |
+        |--------------|--------------|
+        | CFM56-5*     | A320 Family  |
+        | GE90-115B    | B777         |
+        | NonExistent* | Concept      |
+
+        merged with the right DataFrame:
+
+        | Engine       | Thrust_kN | Manufacturer |
+        |--------------|-----------|--------------|
+        | CFM56-5A1    | 111       | CFM          |
+        | CFM56-5A2    | 120       | CFM Intl     |
+        | CFM56-5B1    | 133       | CFM          |
+        | GE90-115B    | 514       | GE           |
+
+        should yield the following result:
+
+        | Designation  | Aircraft     | Thrust_kN       | Manufacturer |
+        |--------------|--------------|-----------------|--------------|
+        | CFM56-5*     | A320 Family  | (111+120+133)/3 | CFM          |
+        | GE90-115B    | B777         | 133             | NaN          |
+        | NonExistent* | Concept      | NaN             | NaN          |
         """
         df_left = pd.DataFrame({
             'Designation': ['CFM56-5*', 'GE90-115B', 'NonExistent*'],

@@ -3,6 +3,7 @@
 import pandas as pd
 import pint
 import pint_pandas
+ureg = pint.get_application_registry()
 from aircraftdetective import ureg
 import importlib.resources as pkg_resources
 from aircraftdetective import data
@@ -10,6 +11,10 @@ from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_AIRCRAFT_DATABASE_FILE,
     PATH_ZENODO_ENGINE_DATABASE_FILE,
     PATH_ZENODO_BABIKIAN_FILE
+)
+from aircraftdetective.calculations.engines import (
+    determine_takeoff_to_cruise_tsfc_ratio,
+    scale_engine_data_from_icao_emissions_database
 )
 
 from aircraftdetective.processing.acftdb import _read_engine_database
@@ -35,9 +40,33 @@ df_babikian = df_babikian[df_babikian['Aircraft Designation'].notna() & (df_babi
 
 df_engines = _read_engine_database()
 
-merged_wildcard = left_merge_wildcard(
+dict_tsfc_scaling = determine_takeoff_to_cruise_tsfc_ratio(degree=2, plot=True)
+df_engines_scaled = scale_engine_data_from_icao_emissions_database(
+    scaling_polynomial=dict_tsfc_scaling['TSFC (cruise)'],
+)
+df_engines_scaled.drop(columns=['Final Test Date'], inplace=True)
+
+df_merged = left_merge_wildcard(
     df_left=df,
+    df_right=df_engines_scaled,
+    left_on='Engine Designation (ICAO)',
+    right_on='Engine Identification',
+)
+
+df_merged = left_merge_wildcard(
+    df_left=df_merged,
     df_right=df_engines,
-    left_on='Engine Designation',
+    left_on='Engine Designation (aircraft-database.com)',
     right_on='Engine Designation',
 )
+
+from aircraftdetective.utility.tabular import export_typed_dataframe_to_excel
+
+export_typed_dataframe_to_excel(df=df_merged, path='out.xlsx')
+
+#%%
+
+from aircraftdetective.calculations.engines import (
+    calculate_air_mass_flow_rate
+)
+

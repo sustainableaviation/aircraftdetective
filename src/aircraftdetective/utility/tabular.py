@@ -1,8 +1,9 @@
 # %%
 import pint_pandas
+import pint
+ureg = pint.get_application_registry()
 from pathlib import Path
 import pandas as pd
-from aircraftdetective import ureg
 
 
 def rename_columns_and_set_units(
