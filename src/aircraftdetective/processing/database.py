@@ -90,6 +90,18 @@ df_with_dot = pd.merge(
 
 # %%
 
-from aircraftdetective.calculations.engines import calculate_engine_efficiencies
+from aircraftdetective.calculations.engines import (
+    calculate_engine_efficiencies
+)
+
 calculate_engine_efficiencies(df=df_with_dot)
+# %%
+
+from aircraftdetective.calculations.aerodynamics import (
+    compute_lift_to_drag_ratio,
+    compute_aspect_ratio
+)
+
+df_with_dot = compute_aspect_ratio(df_with_dot)
+df_with_dot = compute_lift_to_drag_ratio(df_with_dot, beta=0.04)
 # %%
