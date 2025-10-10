@@ -260,16 +260,25 @@ def calculate_air_mass_flow_rate(
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with engine data.  
-        Must contain the columns:  
-        `Cruise Speed`, `Fan Diameter`.
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the columns:
+        
+        | Column Name   | Dimension     |
+        |---------------|---------------|
+        | `Cruise Speed`| [length/time] |
+        | `Fan Diameter`| [length]      |
+
     altitude : float [distance], optional
         Altitude above sea level, by default 12000.0 * ureg.meter   
+
+    Raises
+    ------
+    ValueError
+        If `df` is empty or does not contain the required columns.
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with a new column `Air Mass Flow` added.
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with a new column `Air Mass Flow` [weight/time] added.
     """
     if df.empty:
         raise ValueError("DataFrame is empty.")
@@ -356,10 +365,24 @@ def calculate_engine_efficiencies(
     --------
     - [Jet Fuel on Wikipedia](https://en.wikipedia.org/wiki/Aviation_fuel)
     
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the columns:
+
+        | Column Name         | Dimension           |
+        |---------------------|---------------------|
+        | `Cruise Speed`      | [length/time]       |
+        | `TSFC (cruise)`     | [mass/(force*time)] |
+        | `Fuel Flow`         | [mass/time]         |
+        | `Air Mass Flow`     | [mass/time]         |
+        | `Number of Engines` | [dimensionless]     |
+        | `B/P Ratio`         | [dimensionless]     |
+
     Returns
     -------
     pd.DataFrame
-        DataFrame with a new column `Engine Efficiency` added.
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with a new column `Engine Efficiency` [dimensionless] added.
     """
     required_columns = [
         'Cruise Speed',

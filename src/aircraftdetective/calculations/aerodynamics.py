@@ -84,20 +84,29 @@ def compute_lift_to_drag_ratio(
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing the columns:
-        - `Payload/Range` Range at Point B' [length]
-        - `Payload/Range` Range at Point C' [length]
-        - `MTOW` [mass]
-        - `MZFW` [mass]
-        - `Cruise Speed` [length/time]
-        - `TSFC (cruise)` [mass/(force*time)]
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the columns:
+
+        | Column Name                       | Dimension           |
+        |-----------------------------------|---------------------|
+        | `Payload/Range: Range at Point B` | [length]            |
+        | `Payload/Range: Range at Point C` | [length]            |
+        | `MTOW`                            | [mass]              |
+        | `MZFW`                            | [mass]              |
+        | `Cruise Speed`                    | [length/time]       |
+        | `TSFC (cruise)`                   | [mass/(force*time)] |   
+
     beta : float
         Correction factor for the Breguet range equation, typically between 0.4 and 0.6.
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with an additional column `L/D` containing the computed lift-to-drag ratio.
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with an additional column `L/D` [dimensionless] added.
+
+    Raises
+    ------
+    ValueError
+        If the input DataFrame does not contain the required columns, or if `beta` is not between 0 and 1.
 
     Example
     -------
@@ -117,6 +126,21 @@ def compute_lift_to_drag_ratio(
     compute_lift_to_drag_ratio(df=df, beta=0.5)
     ```
     """
+    if df.empty:
+        raise ValueError("DataFrame is empty.")
+    required_columns = [
+        'Payload/Range: Range at Point B',
+        'Payload/Range: Range at Point C',
+        'MTOW',
+        'MZFW',
+        'Cruise Speed',
+        'TSFC (cruise)',
+    ]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
+    if not (0 < beta < 1):
+        raise ValueError("beta must be between 0 and 1.")
     g = 9.81 * ureg('m/s**2')
     df_func = df.copy()
     K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log((df_func['MTOW'] / df_func['MZFW']) * (1 - beta))
@@ -156,17 +180,22 @@ def compute_aspect_ratio(
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing the columns 'Wingspan' and 'Wing Area'
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the columns:
+
+        | Column Name | Dimension  |
+        |-------------|------------|
+        | `Wingspan`  | [length]   |
+        | `Wing Area` | [area]     |
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with an additional column 'Aspect Ratio' containing the computed aspect ratio.
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with an additional column `Aspect Ratio` [dimensionless] added.
 
     Raises
     ------
     ValueError
-        If the input DataFrame does not contain the required columns 'Wingspan' and 'Wing Area'
+        If the input DataFrame does not contain the required columns.
 
     Example
     -------
