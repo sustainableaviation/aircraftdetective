@@ -15,7 +15,6 @@ from aircraftdetective.utility.physics import _calculate_atmospheric_conditions
 from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE,
     PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE,
-    PATH_ZENODO_ENGINE_CONCORDANCE_FILE
 )
 
 

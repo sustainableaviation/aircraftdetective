@@ -1,4 +1,3 @@
-# %%
 from pathlib import Path
 import pandas as pd
 import pint
@@ -384,7 +383,38 @@ def enrich_aircraft_database(
     from the [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
     (discontinued as of 01-2024).
 
-    ADD MORE DESCRIPTION HERE
+    This function serves as a high-level wrapper that first processes the aircraft and engine
+    datasets separately using helper functions and then combines them.
+
+    See Also
+    --------
+    [`aircraftdetective.processing.acftdb._read_aircraft_database`][]
+    [`aircraftdetective.processing.acftdb._read_engine_database`][]
+    [`aircraftdetective.processing.acftdb._read_properties_database`][]
+    [`aircraftdetective.processing.acftdb._read_manufacturers_database`][]
+
+    Notes
+    -----
+    With no parameters passed, the function will download the relevant JSON files 
+    from the [aircraft-database.com Backup Zenodo repository](https://doi.org/10.5281/zenodo.14382244).
+
+    Parameters
+    ----------
+    path_json_aircraft_database : str
+        Path to the JSON file containing the aircraft models and their properties.
+    path_json_engine_database : str
+        Path to the JSON file containing the engine models and their properties.
+    path_json_properties : str
+        Path to the JSON file containing the property IDs and their names.
+    path_json_manufacturers : str
+        Path to the JSON file containing the manufacturer IDs and their names.
+
+    Returns
+    -------
+    pd.DataFrame
+        A [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the merged 
+        aircraft and engine data. Each row represents a specific aircraft model equipped with a 
+        specific engine model.
     """
     df_aircraft = _read_aircraft_database(
         path_json_aircraft_database=path_json_aircraft_database,
