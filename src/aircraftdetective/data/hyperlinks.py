@@ -9,4 +9,3 @@ PATH_ZENODO_AIRCRAFT_DATABASE_MANUFACTURERS_FILE = r"https://zenodo.org/records/
 PATH_ZENODO_AIRCRAFT_DATABASE_PROPERTIES_FILE = r"https://zenodo.org/records/14524630/files/properties.json?download=1"
 PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE = r"https://www.easa.europa.eu/en/downloads/131424/en"
 PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE = r"https://zenodo.org/records/17275413/files/Engine%20Database%20(TSFC%20Data).xlsx?download=1"
-PATH_ZENODO_ENGINE_CONCORDANCE_FILE = r"/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Concordance Engines.xlsx"
