@@ -2,13 +2,19 @@
 import pandas as pd
 import pint
 import pint_pandas
+ureg = pint.get_application_registry()
+from pathlib import Path
 from aircraftdetective import ureg
 import importlib.resources as pkg_resources
 from aircraftdetective import data
+from aircraftdetective.data.hyperlinks import (
+    PATH_ZENODO_USDOT_T2_FILE,
+    PATH_ZENODO_USDOT_ACFT_TYPES_FILE
+)
 
 def process_data_usdot_t2(
-    path_csv_t2: str,
-    path_csv_aircraft_types: str | None = None
+    path_csv_t2: str = PATH_ZENODO_USDOT_T2_FILE,
+    path_csv_aircraft_types: str = PATH_ZENODO_USDOT_ACFT_TYPES_FILE
 ) -> pd.DataFrame:
     """
     Given a CSV file containing the T2 data from Form 41 Schedule T-100, 
@@ -17,15 +23,18 @@ def process_data_usdot_t2(
     Parameters
     ----------
     path_csv_t2 : str
-        Path to the CSV file containing the T2 data from Form 41 Schedule T-100
+        Path or URL to the CSV file containing the T2 data from Form 41 Schedule T-100
     path_csv_aircraft_types : str, optional
-        Path to the CSV file containing the aircraft types data, by default "src/aircraft
+        Path or URL to the CSV file containing the aircraft types data,
+        by default None. If None, the function will use the local file
+        `src/aircraftdetective/data/USDOT/L_AIRCRAFT_TYPES.csv`.
 
     Notes
     -----
-    Required data must be downloaded from the US Department of Transport:
-    - ["AircraftType": ]()
-    - ["Data Tools: Download": `T_SCHEDULE_T2.csv`]()
+    Required data can be downloaded from the [`aircraftdetective` Zenodo repository](https://doi.org/10.5281/zenodo.17255995):
+
+    - [`05-10-2025_T_SCHEDULE_T2.csv`]()
+    - [`05-10-2025_L_AIRCRAFT_TYPES.csv`]()
 
     Terminology
     -----
@@ -125,7 +134,11 @@ def process_data_usdot_t2(
     Returns
     -------
     pd.DataFrame
-        A DataFrame containing the processed T2 data.
+        A [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with support for physical units, containing the processed T2 data.  
+
+        | Aircraft Designation (US DOT Schedule T2)  | Fuel/Available Seat Distance | Fuel/Revenue Seat Distance | Fuel Flow          | Airborne Efficiency | SLF    |
+        |--------------------------------------------|------------------------------|----------------------------|--------------------|---------------------|--------|
+        | string                                     | pint[gallons/mile]           | pint[gallons/mile]         | pint[gallons/hour] | pint[]              | pint[] |
         
     Example
     -------
@@ -150,19 +163,16 @@ def process_data_usdot_t2(
         sep=',',
     )
     
-    data_aircraft_types = []
-    with open(
+    df_aircraft_types = pd.read_csv(
         path_csv_aircraft_types,
-        'r',
+        sep='|', # separator not present in csv file, to ensure entire line is read into a single column
+        header=0,
         encoding='utf-8'
-    ) as f:
-        for line in f:
-            parts = line.strip().split(',', 1) # split each line only on the first comma found
-            data_aircraft_types.append(parts)
-    df_aircraft_types = pd.DataFrame(
-        data_aircraft_types[1:],
-        columns=data_aircraft_types[0]
     )
+    single_col_name = df_aircraft_types.columns[0]
+    new_columns = single_col_name.split(',', 1) # split only on the first comma
+    df_aircraft_types[new_columns] = df_aircraft_types[single_col_name].str.split(',', n=1, expand=True)
+    df_aircraft_types = df_aircraft_types[new_columns]
     df_aircraft_types = (df_aircraft_types
         .rename(
             columns={
@@ -204,6 +214,7 @@ def process_data_usdot_t2(
     """
 
     dict_columns_and_units = {
+        'Year': int,
         'AVL_SEAT_MILES': 'pint[miles]',
         'REV_PAX_MILES': 'pint[miles]',
         'AIRCRAFT_FUELS': 'pint[gallons]',
@@ -254,6 +265,14 @@ def process_data_usdot_t2(
         value=pd.NA
     )
 
+    # COLUMN RENAMING
+
+    df_t2 = df_t2.rename(
+        columns={
+            'YEAR': 'Year',
+        }
+    )
+
     # CUSTOM COLUMN CALCULATIONS
 
     df_t2['Fuel/Available Seat Distance'] = df_t2['AIRCRAFT_FUELS']/df_t2['AVL_SEAT_MILES']
@@ -270,6 +289,7 @@ def process_data_usdot_t2(
     # RETURN
 
     list_return_columns = [
+        'Year',
         'Aircraft Designation (US DOT Schedule T2)',
         'Fuel/Available Seat Distance',
         'Fuel/Revenue Seat Distance',

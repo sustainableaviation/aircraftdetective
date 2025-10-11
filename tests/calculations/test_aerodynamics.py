@@ -1,130 +1,226 @@
-from aircraftdetective import ureg
+# %%
+import pandas as pd
+import pint_pandas
 import pytest
 import pint
-import math
 
+from aircraftdetective import ureg
 from aircraftdetective.calculations.aerodynamics import (
     compute_lift_to_drag_ratio,
     compute_aspect_ratio
 )
 
-def test_compute_lift_to_drag_ratio_typical_values():
-    """
-    Tests the L/D calculation with typical values for a modern narrow-body airliner.
-    
-    Data is loosely based on an Airbus A320neo.
-    - Range (R): 6,100 km
-    - Beta (β): 0.04 (a typical correction factor)
-    - MTOW: 78,000 kg
-    - MZFW: 62,500 kg
-    - Cruise Speed (v_cruise): 830 km/h
-    - TSFC at cruise: 17 g/kNs (a typical value for a modern turbofan)
-    """
-    # --- Input Data ---
-    R = 6100 * ureg.kilometer
-    beta = 0.04 * ureg.dimensionless
-    MTOW = 78000 * ureg.kilogram
-    MZFW = 62500 * ureg.kilogram
-    v_cruise = 830 * ureg.kilometer_per_hour
-    # g/kNs is equivalent to 1e-6 s/m, which has dimensions of [time]/[length]
-    TSFC_cruise = 17 * ureg.gram / (ureg.kilonewton * ureg.second)
+class TestComputeLiftToDragRatio:
+    """Test suite for the `compute_lift_to_drag_ratio` function."""
 
-    # --- Expected Result Calculation ---
-    # Expected L/D is around 24.4 for these values
-    expected_ld_ratio = 24.4
+    @pytest.fixture
+    def ld_ratio_input_df_si(self):
+        """Provides a sample DataFrame with SI units for L/D ratio tests based on an A320neo."""
+        return pd.DataFrame({
+            'Payload/Range: Range at Point B': pd.Series([3900], dtype='pint[km]'),
+            'Payload/Range: Range at Point C': pd.Series([6500], dtype='pint[km]'),
+            'MTOW': pd.Series([79000], dtype='pint[kg]'),
+            'MZFW': pd.Series([64300], dtype='pint[kg]'),
+            'Cruise Speed': pd.Series([830], dtype='pint[km/h]'),
+            'TSFC (cruise)': pd.Series([17], dtype='pint[g/(kN*s)]'),
+        })
 
-    # --- Function Call & Assertion ---
-    ld_ratio = compute_lift_to_drag_ratio(R, beta, MTOW, MZFW, v_cruise, TSFC_cruise)
+    @pytest.fixture
+    def ld_ratio_input_df_imperial(self):
+        """Provides a sample DataFrame with Imperial/Nautical units for L/D ratio tests."""
+        return pd.DataFrame({
+            # ~3900 km
+            'Payload/Range: Range at Point B': pd.Series([2106], dtype='pint[nautical_mile]'),
+            # ~6500 km
+            'Payload/Range: Range at Point C': pd.Series([3510], dtype='pint[nautical_mile]'),
+            'MTOW': pd.Series([174165], dtype='pint[lb]'),      # ~79000 kg
+            'MZFW': pd.Series([141757], dtype='pint[lb]'),      # ~64300 kg
+            'Cruise Speed': pd.Series([448], dtype='pint[knot]'),      # ~830 km/h
+            # ~17 g/kNs
+            'TSFC (cruise)': pd.Series([0.599], dtype='pint[lb/(lbf*h)]'),
+        })
 
-    assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
-    assert ld_ratio.dimensionless
+    def test_typical_values(self, ld_ratio_input_df_si):
+        """
+        Tests the L/D calculation with typical values for a modern narrow-body airliner.
+        """
+        beta = 0.04  # A typical correction factor
+        expected_ld_ratio = 22.8
+
+        result_df = compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=beta)
+
+        assert 'L/D' in result_df.columns
+        ld_ratio = result_df['L/D'].iloc[0]
+        assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
+        assert ld_ratio.dimensionless
+
+    def test_different_units(self, ld_ratio_input_df_imperial):
+        """
+        Tests the L/D calculation with different but compatible units (Imperial/Nautical).
+        The numerical result should be identical to the SI unit test.
+        """
+        beta = 0.04
+        expected_ld_ratio = 22.8
+
+        result_df = compute_lift_to_drag_ratio(df=ld_ratio_input_df_imperial, beta=beta)
+
+        assert 'L/D' in result_df.columns
+        ld_ratio = result_df['L/D'].iloc[0]
+        assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
+        assert ld_ratio.dimensionless
+
+    def test_wrong_units_raises_value_error(self, ld_ratio_input_df_si):
+        """
+        Tests that providing an input with incorrect dimensions (e.g., mass for range)
+        raises a ValueError because the result is not dimensionless.
+        """
+        df_wrong = ld_ratio_input_df_si.copy()
+        # Intentionally introduce wrong units: Change Range from [length] to [mass]
+        df_wrong['Payload/Range: Range at Point B'] = pd.Series([3900], dtype='pint[kg]')
+        df_wrong['Payload/Range: Range at Point C'] = pd.Series([6500], dtype='pint[kg]')
+
+        # The function should now raise a ValueError due to the unit mismatch.
+        with pytest.raises(ValueError, match="Calculated L/D is not dimensionless"):
+            compute_lift_to_drag_ratio(df=df_wrong, beta=0.04)
+
+    def test_missing_column(self, ld_ratio_input_df_si):
+        """
+        Tests that a ValueError is raised if a required column is missing.
+        """
+        df_missing = ld_ratio_input_df_si.drop(columns=['MTOW'])
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['MTOW'\\]"):
+            compute_lift_to_drag_ratio(df=df_missing, beta=0.04)
+
+    def test_beta_out_of_range(self, ld_ratio_input_df_si):
+        """
+        Tests that a ValueError is raised if beta is not between 0 and 1.
+        """
+        with pytest.raises(ValueError, match="beta must be between 0 and 1."):
+            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=1.5)
+        with pytest.raises(ValueError, match="beta must be between 0 and 1."):
+            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=-0.1)
+
+    def test_empty_df(self):
+        """
+        Tests that a ValueError is raised for an empty DataFrame.
+        """
+        empty_df = pd.DataFrame()
+        with pytest.raises(ValueError, match="DataFrame is empty."):
+            compute_lift_to_drag_ratio(df=empty_df, beta=0.04)
+
+    def test_multi_row(self):
+        """
+        Tests the L/D calculation on a multi-row DataFrame with data for two different aircraft.
+        """
+        df_multi = pd.DataFrame({
+            'Payload/Range: Range at Point B': pd.Series([3900, 8300], dtype='pint[km]'),
+            'Payload/Range: Range at Point C': pd.Series([6500, 15000], dtype='pint[km]'),
+            'MTOW': pd.Series([79000, 280000], dtype='pint[kg]'),
+            'MZFW': pd.Series([64300, 200000], dtype='pint[kg]'),
+            'Cruise Speed': pd.Series([830, 903], dtype='pint[km/h]'),
+            'TSFC (cruise)': pd.Series([17, 16], dtype='pint[g/(kN*s)]'),
+        })
+        beta = 0.04
+        expected_ld_ratios = [22.8, 24.7]  # A320-like, A350-like
+
+        result_df = compute_lift_to_drag_ratio(df=df_multi, beta=beta)
+
+        assert 'L/D' in result_df.columns
+        assert result_df['L/D'].pint.magnitude.tolist() == pytest.approx(expected_ld_ratios, rel=1e-2)
+        assert result_df['L/D'].pint.units == ureg.dimensionless
 
 
-def test_compute_lift_to_drag_ratio_different_units():
-    """
-    Tests the L/D calculation with different but compatible units (Imperial/Nautical).
-    The numerical result should be identical to the SI unit test.
-    """
-    # --- Input Data in Imperial/Nautical Units ---
-    R = 3294 * ureg.nautical_mile  # ~6100 km
-    beta = 0.04 * ureg.dimensionless
-    MTOW = 171961 * ureg.pound      # ~78000 kg
-    MZFW = 137789 * ureg.pound      # ~62500 kg
-    v_cruise = 448 * ureg.knot      # ~830 km/h
-    # This TSFC value is equivalent to ~17 g/kNs
-    TSFC_cruise = 0.599 * ureg.pound / (ureg.pound_force * ureg.hour)
+class TestComputeAspectRatio:
+    """Groups tests for the compute_aspect_ratio function."""
 
-    # --- Expected Result ---
-    expected_ld_ratio = 24.4
+    @pytest.fixture
+    def aspect_ratio_input_df_si(self):
+        """Provides a sample DataFrame with SI units for aspect ratio tests (A320)."""
+        return pd.DataFrame({
+            'Wingspan': pd.Series([35.8], dtype='pint[m]'),
+            'Wing Area': pd.Series([122.6], dtype='pint[m**2]'),
+        })
 
-    # --- Function Call & Assertion ---
-    ld_ratio = compute_lift_to_drag_ratio(R, beta, MTOW, MZFW, v_cruise, TSFC_cruise)
+    @pytest.fixture
+    def aspect_ratio_input_df_imperial(self):
+        """Provides a sample DataFrame with Imperial units for aspect ratio tests."""
+        return pd.DataFrame({
+            'Wingspan': pd.Series([117.45], dtype='pint[foot]'),      # ~35.8 m
+            'Wing Area': pd.Series([1319.65], dtype='pint[foot**2]'), # ~122.6 m^2
+        })
 
-    assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
-    assert ld_ratio.dimensionless
+    def test_typical_values(self, aspect_ratio_input_df_si):
+        """
+        Tests the aspect ratio calculation with typical values for an Airbus A320.
+        """
+        expected_aspect_ratio = 10.45
 
+        result_df = compute_aspect_ratio(df=aspect_ratio_input_df_si)
 
-def test_compute_lift_to_drag_ratio_wrong_units():
-    """
-    Tests that a DimensionalityError is raised if inputs have incorrect dimensions.
-    """
-    with pytest.raises(pint.errors.DimensionalityError):
-        compute_lift_to_drag_ratio(
-            R=1000 * ureg.kilogram,  # Incorrect: should be [length]
-            beta=0.04 * ureg.dimensionless,
-            MTOW=78000 * ureg.kilogram,
-            MZFW=62500 * ureg.kilogram,
-            v_cruise=830 * ureg.kilometer_per_hour,
-            TSFC_cruise=17 * ureg.gram / (ureg.kilonewton * ureg.second)
-        )
+        assert 'Aspect Ratio' in result_df.columns
+        aspect_ratio = result_df['Aspect Ratio'].iloc[0]
+        assert aspect_ratio.magnitude == pytest.approx(expected_aspect_ratio, rel=1e-3)
+        assert aspect_ratio.dimensionless
 
+    def test_different_units(self, aspect_ratio_input_df_imperial):
+        """
+        Tests the aspect ratio calculation with Imperial units.
+        The numerical result should be identical.
+        """
+        expected_aspect_ratio = 10.45
 
-def test_compute_aspect_ratio_typical_values():
-    """
-    Tests the aspect ratio calculation with typical values for an Airbus A320.
-    - Wingspan (b): 35.8 m
-    - Wing Area (S): 122.6 m^2
-    """
-    # --- Input Data ---
-    wingspan = 35.8 * ureg.meter
-    wing_area = 122.6 * ureg.meter**2
+        result_df = compute_aspect_ratio(df=aspect_ratio_input_df_imperial)
 
-    # --- Expected Result ---
-    # A = b^2 / S = 35.8^2 / 122.6
-    expected_aspect_ratio = 10.45
+        assert 'Aspect Ratio' in result_df.columns
+        aspect_ratio = result_df['Aspect Ratio'].iloc[0]
+        assert aspect_ratio.magnitude == pytest.approx(expected_aspect_ratio, rel=1e-3)
+        assert aspect_ratio.dimensionless
 
-    # --- Function Call & Assertion ---
-    aspect_ratio = compute_aspect_ratio(wingspan, wing_area)
+    def test_wrong_units_returns_dimensioned_quantity(self, aspect_ratio_input_df_si):
+        """
+        Tests that providing inputs with incorrect dimensions (e.g., area/length
+        instead of area/area) returns a dimensioned quantity rather than raising an error.
+        """
+        df_wrong = aspect_ratio_input_df_si.copy()
+        # Change Wing Area to a length unit (m) instead of area (m**2)
+        df_wrong['Wing Area'] = pd.Series([122.6], dtype='pint[m]')
 
-    assert aspect_ratio.magnitude == pytest.approx(expected_aspect_ratio, rel=1e-3)
-    assert aspect_ratio.dimensionless
+        result_df = compute_aspect_ratio(df=df_wrong)
+        result_units = result_df['Aspect Ratio'].pint.units
 
+        # Aspect Ratio should be dimensionless.
+        # The incorrect calculation (m**2 / m) results in units of length (m).
+        assert not result_units.dimensionless
+        assert result_units == ureg.meter
 
-def test_compute_aspect_ratio_different_units():
-    """
-    Tests the aspect ratio calculation with Imperial units.
-    The numerical result should be identical.
-    """
-    # --- Input Data in Feet ---
-    wingspan = 117.45 * ureg.foot  # ~35.8 m
-    wing_area = 1319.65 * ureg.foot**2  # ~122.6 m^2
+    def test_missing_column(self, aspect_ratio_input_df_si):
+        """
+        Tests that a ValueError is raised if a required column is missing.
+        """
+        df_missing = aspect_ratio_input_df_si.drop(columns=['Wing Area'])
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['Wing Area'\\]"):
+            compute_aspect_ratio(df=df_missing)
 
-    # --- Expected Result ---
-    expected_aspect_ratio = 10.45
+    def test_empty_df(self):
+        """
+        Tests that a ValueError is raised for an empty DataFrame.
+        """
+        empty_df = pd.DataFrame()
+        with pytest.raises(ValueError, match="DataFrame is missing required columns"):
+            compute_aspect_ratio(df=empty_df)
 
-    # --- Function Call & Assertion ---
-    aspect_ratio = compute_aspect_ratio(wingspan, wing_area)
+    def test_multi_row(self):
+        """
+        Tests the aspect ratio calculation on a multi-row DataFrame.
+        """
+        df_multi = pd.DataFrame({
+            'Wingspan': pd.Series([35.8, 64.75], dtype='pint[m]'),      # A320, A350
+            'Wing Area': pd.Series([122.6, 443], dtype='pint[m**2]'),
+        })
+        expected_aspect_ratios = [10.45, 9.46]
 
-    assert aspect_ratio.magnitude == pytest.approx(expected_aspect_ratio, rel=1e-3)
-    assert aspect_ratio.dimensionless
+        result_df = compute_aspect_ratio(df=df_multi)
 
-
-def test_compute_aspect_ratio_wrong_units():
-    """
-    Tests that a DimensionalityError is raised if inputs have incorrect dimensions.
-    """
-    with pytest.raises(pint.errors.DimensionalityError):
-        compute_aspect_ratio(
-            b=35.8 * ureg.meter,
-            S=122.6 * ureg.meter  # Incorrect: should be [area]
-        )
+        assert 'Aspect Ratio' in result_df.columns
+        assert result_df['Aspect Ratio'].pint.magnitude.tolist() == pytest.approx(expected_aspect_ratios, rel=1e-3)
+        assert result_df['Aspect Ratio'].pint.units == ureg.dimensionless

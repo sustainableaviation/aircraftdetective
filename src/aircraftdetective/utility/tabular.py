@@ -1,8 +1,9 @@
 # %%
 import pint_pandas
+import pint
+ureg = pint.get_application_registry()
 from pathlib import Path
 import pandas as pd
-from aircraftdetective import ureg
 
 
 def rename_columns_and_set_units(
@@ -154,4 +155,192 @@ def export_typed_dataframe_to_excel(
         header=True,
         index=False,
         engine='openpyxl',
+    )
+
+
+def update_column_data(
+    df_main: pd.DataFrame,
+    df_other: pd.DataFrame,
+    merge_column: str,
+    list_columns: list[str],
+) -> pd.DataFrame:
+    """_summary_
+
+    _extended_summary_
+
+    Given a first DataFrame of the kind:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) |               |
+    | B737-200C            | (...) | 0.5           |
+    | A380-800             | (...) |               |
+
+    and a second DataFrame of the kind:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) | 0.6           |
+    | A380-800             | (...) | 0.7           |
+
+    and a list of columns to update:
+
+    list_columns = ['TSFC (cruise)']
+
+    and a merge column:
+
+    merge_column = 'Aircraft Designation'
+
+    the function will update the first DataFrame with the values from the second DataFrame:
+
+    | Aircraft Designation | (...) | TSFC (cruise) |
+    |----------------------|-------|---------------|
+    | B707-120             | (...) | 0.6           |
+    | B737-200C            | (...) | 0.5           |
+    | A380-800             | (...) | 0.7           |
+
+
+    Parameters
+    ----------
+    df_main : pd.DataFrame
+        _description_
+    df_other : pd.DataFrame
+        _description_
+    merge_column : str
+        _description_
+    list_columns : list[str]
+        _description_
+
+    See Also
+    --------
+    - [GitHub Issues/PR at `pint-pandas`](https://github.com/hgrecco/pint-pandas/pull/247)
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
+    df_main_updated = pd.merge(
+        left=df_main,
+        right=df_other[list_columns + [merge_column]],
+        on=merge_column,
+        how='left',
+        suffixes=('', '_update')
+    )
+
+    for col in list_columns:
+        df_main_updated[col] = df_main_updated[f"{col}_update"].astype(float).fillna(
+            df_main_updated[col].astype(float)
+        ).astype(df_main_updated[col].dtype)
+
+    df_main_updated = df_main_updated.drop(columns=[f"{col}_update" for col in list_columns])
+
+    return df_main_updated
+
+
+def left_merge_wildcard(
+    df_left: pd.DataFrame,
+    df_right: pd.DataFrame,
+    left_on: str,
+    right_on: str,
+) -> pd.DataFrame:
+    """
+    Given two DataFrames, merges them on columns that may contain wildcard characters.  
+    Rows are aggregated by taking the mean of all matching rows.
+
+    For a left dataframe of the form:
+
+    | Engine Designation | ... |
+    |--------------------|-----|
+    | CFM56-5*           | ... |
+    | V2500-A1           | ... |
+
+    and a right dataframe of the form:
+
+    | Engine Designation | Thrust (kN) | Non-Numeric Column |
+    |--------------------|-------------|--------------------|
+    | CFM56-5A1          | 60          | Foo                |
+    | CFM56-5A2          | 62          | Bar                |
+    | CFM56-5A3          | 64          | Baz                |
+    | V2500-A1           | 100         | Qux                |
+
+    the function returns a merged dataframe of the form:
+
+    | Engine Designation | ... | Thrust (kN)  | Non-Numeric Column |
+    |--------------------|-----|--------------|--------------------|
+    | CFM56-5*           | ... | (60+62+64)/3 | Foo                |
+    | V2500-A1           | ... | 100          | Qux                |
+
+    Notes
+    -----
+    Wildcard characters are supported in the left DataFrame only.
+
+    See Also
+    --------
+    [`pandas.DataFrame.merge`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html)
+
+    Parameters
+    ----------
+    df_left : pd.DataFrame
+        Left DataFrame to merge.
+    df_right : pd.DataFrame
+        Right DataFrame to merge.
+    left_on : str
+        Column name in the left DataFrame to merge on.
+    right_on : str
+        Column name in the right DataFrame to merge on.
+
+    Returns
+    -------
+    pd.DataFrame
+        Merged DataFrame.
+    """
+    if left_on not in df_left.columns:
+        raise KeyError(f"'{left_on}' not in left DataFrame columns")
+    if right_on not in df_right.columns:
+        raise KeyError(f"'{right_on}' not in right DataFrame columns")
+
+    df_l = df_left.copy()
+    df_r = df_right.copy()
+
+    left_keys: list = df_l[left_on].drop_duplicates().tolist()
+    right_keys: list = df_r[right_on].drop_duplicates().tolist()
+
+    dict_matching = {}
+    for key in left_keys:
+        if isinstance(key, str) and '*' in key: # eg. 'CFM56-5*'
+            pattern = key.split('*')[0] # eg. 'CFM56-5'
+            matching_rights = [ # eg. ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']
+                rk for rk
+                in right_keys
+                if isinstance(rk, str)
+                and rk.startswith(pattern)
+            ]
+            dict_matching[key] = matching_rights # eg. {'CFM56-5*': ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']}
+        else:
+            dict_matching[key] = [key] # eg. {'V2500-A1': ['V2500-A1']}
+
+    for key in dict_matching.keys():
+        df_r.loc[
+            df_r[right_on].isin(dict_matching[key]),
+            'key_wildcard'
+        ] = key
+
+    numeric_cols = df_r.select_dtypes(include='number').columns
+    object_cols = df_r.select_dtypes(exclude='number').columns.drop([right_on, 'key_wildcard'], errors='ignore')
+
+    agg_rules = {col: 'mean' for col in numeric_cols}
+    agg_rules.update({col: 'first' for col in object_cols})
+
+    if not agg_rules:
+        df_r_agg = pd.DataFrame({'key_wildcard': list(dict_matching.keys())}).set_index('key_wildcard')
+    else:
+        df_r_agg = df_r.groupby('key_wildcard').agg(agg_rules)
+
+    return pd.merge(
+        left=df_l,
+        right=df_r_agg,
+        how='left',
+        left_on=left_on,
+        right_on='key_wildcard',
     )

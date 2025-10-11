@@ -5,54 +5,62 @@ import numpy as np
 import numpy.testing as npt
 import tempfile
 from pathlib import Path
+from aircraftdetective import ureg
+import math
 
 from aircraftdetective.calculations.engines import (
     determine_takeoff_to_cruise_tsfc_ratio,
-    scale_engine_data_from_icao_emissions_database
+    scale_engine_data_from_icao_emissions_database,
+    calculate_air_mass_flow_rate
 )
+from aircraftdetective.utility.physics import _calculate_atmospheric_conditions
 
-
-def test_determine_takeoff_to_cruise_tsfc_ratio():
+class TestDetermineTakeoffToCruiseTsfcRatio:
     """
-    Tests the polynomial fitting for TSFC data by creating a temporary Excel file.
-    This test checks that the function returns a dictionary with the correct structure.
+    Test suite for the `determine_takeoff_to_cruise_tsfc_ratio` function.
     """
-    input_data = [
-        ['Engine Identification', 'TSFC (takeoff)', 'TSFC (cruise)'],
-        ['No Unit', 'g/(kN*s)', 'g/(kN*s)'],
-        ["Eng-A", 10, 18],
-        ["Eng-B", 12, 22],
-        ["Eng-C", 15, 28],
-        ["Eng-D", 18, 35]
-    ]
-    sample_df = pd.DataFrame(input_data)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        temp_path = Path(tmpdir) / "temp_tsfc_calibration.xlsx"
-        with pd.ExcelWriter(temp_path, engine='openpyxl') as writer:
-            sample_df.to_excel(writer, sheet_name='Data', index=False, header=False)
+    def test_with_default_data_and_valid_degrees(self):
+        """
+        Tests the polynomial fitting using the default data source with valid
+        degree parameters (1 and 2). This test requires network access.
+        """
 
-        result_dict = determine_takeoff_to_cruise_tsfc_ratio(
-            path_excel_engine_data_for_calibration=temp_path
-        )
+        result_linear = determine_takeoff_to_cruise_tsfc_ratio(degree=1)
 
-    expected_keys = [
-        'df_engines',
-        'pol_linear_fit',
-        'pol_quadratic_fit',
-        'r_squared_linear_fit',
-        'r_squared_quadratic_fit'
-    ]
+        assert isinstance(result_linear, dict)
+        expected_keys = [
+            'TSFC (cruise)',
+            'TSFC (cruise)_r2'
+        ]
+        assert all(key in result_linear for key in expected_keys)
+        poly_linear = result_linear['TSFC (cruise)']
+        assert isinstance(poly_linear, np.polynomial.Polynomial)
+        assert poly_linear.degree() == 1
+        assert isinstance(result_linear['TSFC (cruise)_r2'], float)
 
-    assert all(key in result_dict for key in expected_keys), "Result dictionary is missing expected keys"
+        result_quadratic = determine_takeoff_to_cruise_tsfc_ratio() # Uses degree=2 default
+        
+        assert isinstance(result_quadratic, dict)
+        assert all(key in result_quadratic for key in expected_keys)
+        poly_quadratic = result_quadratic['TSFC (cruise)']
+        assert isinstance(poly_quadratic, np.polynomial.Polynomial)
+        assert poly_quadratic.degree() == 2
+        assert isinstance(result_quadratic['TSFC (cruise)_r2'], float)
 
-    assert not result_dict['df_engines'].empty, "The returned DataFrame should not be empty"
-
-    assert isinstance(result_dict['pol_linear_fit'], np.polynomial.Polynomial), "Linear fit is not a Polynomial object"
-    assert isinstance(result_dict['pol_quadratic_fit'], np.polynomial.Polynomial), "Quadratic fit is not a Polynomial object"
-
-    assert isinstance(result_dict['r_squared_linear_fit'], float), "Linear R-squared is not a float"
-    assert isinstance(result_dict['r_squared_quadratic_fit'], float), "Quadratic R-squared is not a float"
+    def test_invalid_degree_raises_value_error(self):
+        """
+        Tests that the function raises ValueError for invalid `degree` parameters.
+        This check occurs before file access, so it does not require network access.
+        """
+        with pytest.raises(ValueError, match="degree must be a positive integer."):
+            determine_takeoff_to_cruise_tsfc_ratio(degree=0)
+        
+        with pytest.raises(ValueError, match="degree must be a positive integer."):
+            determine_takeoff_to_cruise_tsfc_ratio(degree=-5)
+            
+        with pytest.raises(ValueError, match="degree must be a positive integer."):
+            determine_takeoff_to_cruise_tsfc_ratio(degree=1.5)
 
 
 def test_scale_engine_data():
@@ -99,3 +107,81 @@ def test_scale_engine_data():
         expected_tsfc_cruise_mag,
         err_msg="Scaled TSFC (cruise) value is incorrect"
     )
+
+
+@pytest.fixture
+def sample_engine_df() -> pd.DataFrame:
+    """Provides a sample DataFrame with engine data and pint units."""
+    data = {
+        "Engine": pd.Series(['Engine A', 'Engine B']),
+        "Cruise Speed": pd.Series([250, 240], dtype="pint[m/s]"),
+        "Fan Diameter": pd.Series([3.4, 3.2], dtype="pint[meter]"),
+    }
+    return pd.DataFrame(data)
+
+class TestCalculateAirMassFlowRate:
+    """Test suite for the `calculate_air_mass_flow_rate` function."""
+
+    def test_calculates_correctly_at_default_altitude(self, sample_engine_df):
+        """
+        Tests if the function calculates the correct air mass flow rate at the
+        default altitude of 12000 meters.
+        """
+        altitude = 12000.0 * ureg.meter
+        air_density = _calculate_atmospheric_conditions(altitude)['density']
+
+        expected_flow = (air_density * (250.0 * ureg('m/s')) * math.pi * (3.4 * ureg.meter / 2)**2).to('kg/s')
+
+        result_df = calculate_air_mass_flow_rate(sample_engine_df)
+        
+        assert result_df['Air Mass Flow'].iloc[0].magnitude == pytest.approx(expected_flow.magnitude)
+        assert result_df['Air Mass Flow'].iloc[0].units == ureg.kilogram / ureg.second
+
+    def test_calculates_correctly_at_sea_level(self, sample_engine_df):
+        """
+        Tests the calculation with a different altitude (sea level) to ensure
+        the density change is correctly handled.
+        """
+        air_density = _calculate_atmospheric_conditions(0 * ureg.meter)['density']
+        
+        expected_flow = (air_density * 250 * ureg('m/s') * math.pi * (3.4 * ureg.meter / 2)**2).to('kg/s')
+
+        result_df = calculate_air_mass_flow_rate(sample_engine_df, altitude=0 * ureg.meter)
+        
+        assert result_df['Air Mass Flow'].iloc[0].magnitude == pytest.approx(expected_flow.magnitude)
+        assert result_df['Air Mass Flow'].iloc[0].units == ureg.kilogram / ureg.second
+
+    def test_input_dataframe_is_not_modified(self, sample_engine_df):
+        """
+        Tests that the original input DataFrame is not mutated by the function,
+        as it should operate on a copy.
+        """
+        df_original = sample_engine_df.copy()
+        calculate_air_mass_flow_rate(df_original)
+        
+        assert 'Air Mass Flow' not in df_original.columns
+        pd.testing.assert_frame_equal(df_original, sample_engine_df)
+
+    def test_missing_required_columns_raises_keyerror(self, sample_engine_df):
+        """
+        Tests that a KeyError is raised if essential columns are missing.
+        """
+        df_no_speed = sample_engine_df.drop(columns=['Cruise Speed'])
+        with pytest.raises(KeyError):
+            calculate_air_mass_flow_rate(df_no_speed)
+            
+        df_no_diameter = sample_engine_df.drop(columns=['Fan Diameter'])
+        with pytest.raises(KeyError):
+            calculate_air_mass_flow_rate(df_no_diameter)
+
+    def test_calculate_air_mass_flow_rate_raises_error_for_empty_dataframe(self):
+        """
+        Tests that passing an empty DataFrame raises a ValueError.
+        """
+        empty_df = pd.DataFrame({
+            'Cruise Speed': pd.Series(dtype='object'),
+            'Fan Diameter': pd.Series(dtype='object')
+        })
+        
+        with pytest.raises(ValueError, match="DataFrame is empty."):
+            calculate_air_mass_flow_rate(empty_df)

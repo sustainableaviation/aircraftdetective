@@ -1,0 +1,102 @@
+import pint
+ureg = pint.get_application_registry()
+import math
+
+@ureg.check(
+    '[length]' # altitude
+)
+def _calculate_atmospheric_conditions(altitude: float) -> dict[float, float]:
+    r"""
+    Computes the air density and temperature as a function of altitute, for altitudes up to 20,000 meters.
+
+    All calculations are based on the ISA (International Standard Atmosphere):
+
+    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a8/International_Standard_Atmosphere.svg" width="250">
+
+    Temperature in the Troposphere is calculated according to:
+    $$
+        T=T_0 - L * h
+    $$
+    in the lower Stratosphere, it is simply -56.5°C.
+
+    where:
+
+    | Symbol | Dimension             | Description                         | Value        |
+    |--------|-----------------------|-------------------------------------|--------------|
+    | $T$    | [temperature]         | temperature at altitude $h$         | N/A          |
+    | $T_0$  | [temperature]         | temperature at sea level            | 288.15 K     |
+    | $L$    | [temperature/length]  | temperature lapse rate (Troposphere)| 0.0065 K/m   |
+    | $h$    | [length]              | altitude                            | N/A          |
+
+    Density is calculated using the _exponential approximation_:
+    $$
+    \rho = \rho_0 * e^{-\frac{g*h}{R*T}}
+    $$
+    where:
+
+    | Symbol  | Dimension             | Description                         | Value        |
+    |---------|-----------------------|-------------------------------------|--------------|
+    | $\rho$  | [mass/volume]         | air density at altitude $h$         | N/A          |
+    | $\rho_0$| [mass/volume]         | air density at sea level            | 1.225 kg/m³  |
+    | $g$     | [acceleration]        | acceleration due to gravity         | 9.80665 m/s² |
+    | $R$     | [specific gas constant| specific gas constant for air       | 287 J/(kg*K) |
+    | $T$     | [temperature]         | temperature at altitude $h$         | N/A          |
+
+    Parameters
+    ----------
+    altitude : float [distance]
+        Altitude above sea level
+
+    Notes
+    -----
+    Compare also the function
+    [`atmos()` in `openap/extra/aero.py`](https://github.com/TUDelft-CNS-ATM/openap/blob/39619977962fe6b4a86ab7efbefa70890eecfe36/openap/extra/aero.py#L48C5-L48C10)
+    by [Junzi Sun](https://github.com/junzis). Note that `jetfuelburn` function has been re-written completely and does not build on the `openap` code.
+
+    References
+    --------
+    - Temperature: [Eqn.(1.6) in Sadraey (2nd Edition, 2024)](https://doi.org/10.1201/9781003279068)
+    - [Density Equations on Wikipedia](https://en.wikipedia.org/wiki/Barometric_formula#Density_equations)
+
+    Returns
+    -------
+    dict
+        'density' : ureg.Quantity
+            Air density [kg/m³]
+        'temperature' : ureg.Quantity
+            Air temperature [°C]
+
+    Example
+    -------
+    ```pyodide install='jetfuelburn'
+    import jetfuelburn
+    from jetfuelburn import ureg
+    from jetfuelburn.aux.physics import _calculate_atmospheric_conditions
+    _calculate_atmospheric_conditions(altitude=10000*ureg.m)
+    ```
+    """
+    if altitude < 0 * ureg.m:
+        raise ValueError("Altitude must not be <0.")
+    elif altitude > 20000 * ureg.m:
+        raise ValueError("Altitude must not be >20000. We are not considering the stratosphere.")
+
+    temperature_0 = 288.15 * ureg.K # sea-level standard tempreature
+    lapse_rate = 0.0065 * (ureg.K/ureg.m) # temperature lapse rate in the troposphere
+    temperature_lower_stratosphere = 216.65 * ureg.K # constant temperature in the lower stratosphere
+    rho_0 = 1.225 * (ureg.kg/ureg.m ** 3) # sea-level standard atmospheric density
+    rho_1 = 0.36391 * (ureg.kg/ureg.m ** 3) # density at 11000 meters
+    g = 9.80665 * (ureg.m/ureg.s ** 2) # acceleration due to gravity
+    R = 8.3144598 * ((ureg.N * ureg.m)/(ureg.mol*ureg.K)) # univeral gas constant
+    M = 0.0289644 * ureg.kg/ureg.mol # molar mass of dry air
+
+    if altitude <= 11000 * ureg.m:
+        temperature = temperature_0 - lapse_rate * altitude.to(ureg.m)
+        rho = rho_0 * ((temperature_0 - lapse_rate * altitude) / temperature_0) ** (((g * M) / (R * lapse_rate)) - 1)
+    else:
+        temperature = temperature_lower_stratosphere
+        rho = rho_1 * math.exp(-g * M * (altitude - 11000 * ureg.m) / (R * temperature_lower_stratosphere))
+
+    return {
+        'density': rho.to(ureg.kg/ureg.m ** 3),
+        'temperature': temperature.to(ureg.celsius)
+    }

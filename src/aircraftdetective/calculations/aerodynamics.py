@@ -1,41 +1,29 @@
 # %%
-from aircraftdetective import ureg
+import pandas as pd
+import numpy as np
+import pint_pandas
 import pint
-import math
+ureg = pint.get_application_registry()
 
 
-@ureg.check(
-    '[length]',
-    '[]',
-    '[mass]',
-    '[mass]',
-    '[speed]',
-    '[time]/[length]'
-)
 def compute_lift_to_drag_ratio(
-    R: pint.Quantity,
-    beta: pint.Quantity,
-    MTOW: pint.Quantity,
-    MZFW: pint.Quantity,
-    v_cruise: pint.Quantity,
-    TSFC_cruise: pint.Quantity,
-) -> pint.Quantity:
+    df: pd.DataFrame,
+    beta: float,
+) -> pd.DataFrame:
     r"""
     Given points from a payload/range diagram of an aircraft,
     calculates the lift-to-drag ratio (=aerodynamic efficiency)
     based on the Breguet range equation.
 
     ![Payload/Range Diagram](../_static/payload_range_generic.svg)
-    Payload/Range diagram of the Airbus A350-900 (data derived [from manufacturer information](https://web.archive.org/web/20211129144142/https://www.airbus.com/sites/g/files/jlcbta136/files/2021-11/Airbus-Commercial-Aircraft-AC-A350-900-1000.pdf)).
+    **Figure 1:** Payload/Range diagram of the Airbus A350-900 (data derived [from manufacturer information](https://web.archive.org/web/20211129144142/https://www.airbus.com/sites/g/files/jlcbta136/files/2021-11/Airbus-Commercial-Aircraft-AC-A350-900-1000.pdf)).
     Note that in this figure, the y-axis shows _total_ aircraft weight, not _payload weight_.
     Total aircraft weight can be computed by adding the operating empty weight (OEW) to the payload weight and fuel weight.
 
-    [Eqn. (13.34a) in Young (2018)](https://doi.org/10.1002/9781118534786):
-
+    The range equation for a jet aircraft can be written as
     $$
-    R = \frac{V}{cg} \frac{L}{D} \ln \bigg( \frac{m_1}{m_2} \bigg) \\
+    R = \frac{V}{c \cdot g} \frac{L}{D} \ln \bigg( \frac{m_1}{m_2} \bigg)
     $$
-
     where
 
     | Symbol | Unit        | Description                                |
@@ -48,91 +36,131 @@ def compute_lift_to_drag_ratio(
     | $m_1$  | kg          | weight at start of cruise segment          |
     | $m_2$  | kg          | weight at end of cruise segment            |
 
+    The right hand side is composed of the logarithmic weight ratio term and a 
+    term also known as the range factor $K$:
     $$
-    \frac{L}{D} = \frac{K g TSFC_{cruise}}{v_{cruise}} = \frac{R g TSFC_{cruise}}{v_{cruise} \ln(\frac{MTOW}{MZFW} (1-\beta))}
+    K = \frac{V}{c \cdot g} \frac{L}{D}
     $$
+    which is
+    > (...) assumed to be constant during the cruise phase, 
+    > represents an average performance of the aircraft 
+    > and is related to the mean aerodynamic and propulsion characteristics (...)  
+    > — [Martinez-Val et al. (2008)](https://doi.org/10.1243/09544100JAERO338)
 
+    The masses $m_1$ and $m_2$ can be expressed in terms of the maximum takeoff weight (MTOW) 
+    and the maximum zero fuel weight (MZFW) as
+    $$
+    \frac{m_1}{m_2} \propto \frac{(1-\beta)MTOW}{OEW + \text{Payload}} = \frac{(1-\beta)MTOW}{MZFW}
+    $$
+    where the correction factor $\beta$ 
+
+    > (...) accounts for the fuel fractions burnt during the take-off and climbing phases (...), 
+    > the fuel fractions burnt during the descent and landing phases (...) 
+    > [and] the reserve fuel.  
+    > — [Martinez-Val et al. (2008)](https://doi.org/10.1243/09544100JAERO338)
+
+    With that, the lift-to-drag ratio can be computed as
+    $$
+    \frac{L}{D} = \frac{K \cdot g \cdot TSFC_{cruise}}{V} = \frac{R \cdot g \cdot TSFC_{cruise}}{V \ln(\frac{MTOW}{MZFW} (1-\beta))}
+    $$
     where
 
     | Symbol             | Unit            | Description                                      |
     |--------------------|-----------------|--------------------------------------------------|
-    | $L/D$              | -               | Lift-to-drag ratio                               |
-    | $K$                | -               | Breguet range equation constant                  |
-    | $g$                | [m/s$^2$]       | Acceleration due to gravity                      |
-    | $R$                | [m]             | Aircraft range                                   |
-    | $TSFC_{cruise}$    | [time]/[length] | Thrust-specific fuel consumption at cruise       |
-    | $v_{cruise}$       | [m/s]           | Cruise speed                                     |
     | $MTOW$             | [kg]            | Maximum takeoff weight                           |
     | $MZFW$             | [kg]            | Maximum zero fuel weight                         |
     | $\beta$            | -               | Correction factor for the Breguet range equation |
 
-    Eqn. (4) in Martinez-Val et al. (2005) defines the correction factor $\beta$ as:
-
-    $$
-    placeholder = \frac{1}{2}
-    $$
+    References
+    ----------
+    - [Young (2018), Eqn. (13.36)](https://doi.org/10.1002/9781118534786)
+    - [Martinez-Val et al. (2008)](https://doi.org/10.1243/09544100JAERO338)
+    - [Martinez-Val et al. (2005)](https://doi.org/10.2514/6.2005-121)
 
     See Also
     --------
-    - [Young (2018), eqn. (13.36)](https://doi.org/10.1002/9781118534786)
-    - [Martinez-Val et al. (2005), eqn. (4) for use of the correction factor $\beta$:](https://doi.org/10.2514/6.2005-121)
+    [Range (aeronautics) on Wikipedia](https://en.wikipedia.org/wiki/Range_(aeronautics))
 
     Parameters
     ----------
-    R : float
-        Aircraft range, in units of [length]
+    df : pd.DataFrame
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the columns:
+
+        | Column Name                       | Dimension           |
+        |-----------------------------------|---------------------|
+        | `Payload/Range: Range at Point B` | [length]            |
+        | `Payload/Range: Range at Point C` | [length]            |
+        | `MTOW`                            | [mass]              |
+        | `MZFW`                            | [mass]              |
+        | `Cruise Speed`                    | [length/time]       |
+        | `TSFC (cruise)`                   | [mass/(force*time)] |   
+
     beta : float
-        Correction factor for the Breguet range equation, dimensionless
-    MTOW : float
-        Maximum takeoff weight, in units of [mass]
-    MZFW : float
-        Maximum zero fuel weight, in units of [mass]
-    v_cruise : float
-        Cruise speed, in units of [speed]
-    TSFC_cruise : float
-        Thrust-specific fuel consumption at cruise, in units of [time]/[length] (mg/kNs has dimensions of [time]/[length])
+        Correction factor for the Breguet range equation, typically between 0.4 and 0.6.
 
     Returns
     -------
-    float
-        Lift-to-drag ratio ("L/D"), dimensionless
+    pd.DataFrame
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with an additional column `L/D` [dimensionless] added.
+
+    Raises
+    ------
+    ValueError
+        If the input DataFrame does not contain the required columns, or if `beta` is not between 0 and 1.
 
     Example
     -------
-    ```python
-    >>> from aircraftdetective import ureg
-    >>> compute_lift_to_drag_ratio(
-    >>>     R=6100 * ureg.kilometer,
-    >>>     beta=0.04 * ureg.dimensionless,
-    >>>     MTOW=78000 * ureg.kilogram,
-    >>>     MZFW=62500 * ureg.kilogram,
-    >>>     v_cruise=830 * ureg.kilometer_per_hour,
-    >>>     TSFC_cruise=17 * ureg.gram / (ureg.kilonewton * ureg.second)
-    >>> )
-    24.415481437794067 dimensionless
+    ```pyodide install='aircraftdetective'
+    import pandas as pd
+    from aircraftdetective.calculations.aerodynamics import compute_lift_to_drag_ratio
+    df = pd.DataFrame(
+        {
+            'Payload/Range: Range at Point B': pd.Series([13000, 15000], dtype='pint[km]'),
+            'Payload/Range: Range at Point C': pd.Series([6000, 7000], dtype='pint[km]'),
+            'MTOW': pd.Series([275000, 300000], dtype='pint[kg]'),
+            'MZFW': pd.Series([180000, 200000], dtype='pint[kg]'),
+            'Cruise Speed': pd.Series([900, 920], dtype='pint[km/h]'),
+            'TSFC (cruise)': pd.Series([16, 15], dtype='pint[mg/kNs]'),
+        }
+    )
+    compute_lift_to_drag_ratio(df=df, beta=0.5)
     ```
     """
+    if df.empty:
+        raise ValueError("DataFrame is empty.")
+    required_columns = [
+        'Payload/Range: Range at Point B',
+        'Payload/Range: Range at Point C',
+        'MTOW',
+        'MZFW',
+        'Cruise Speed',
+        'TSFC (cruise)',
+    ]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
+    if not (0 < beta < 1):
+        raise ValueError("beta must be between 0 and 1.")
     g = 9.81 * ureg('m/s**2')
-    K = R/math.log((MTOW/MZFW)*(1-beta))
-    ld = (K*g*TSFC_cruise)/v_cruise
-    return ld.to_base_units()
+    df_func = df.copy()
+    K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log((df_func['MTOW'] / df_func['MZFW']) * (1 - beta))
+    K_C: pd.Series = df_func['Payload/Range: Range at Point C'] / np.log((df_func['MTOW'] / df_func['MZFW']) * (1 - beta))
+    K_average = (K_B + K_C) / 2
+    df_func['L/D'] = K_average * g * df_func['TSFC (cruise)'] / df_func['Cruise Speed']
+    df_func['L/D'] = df_func['L/D'].pint.to_base_units()
+    if not df_func['L/D'].pint.units.dimensionless:
+        raise ValueError("Calculated L/D is not dimensionless, please check the input units.")
+    return df_func
 
 
-@ureg.check(
-    '[length]',
-    '[area]',
-)
 def compute_aspect_ratio(
-    b: pint.Quantity,
-    S: pint.Quantity,
-) -> pint.Quantity:
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     r"""
     Given the wingspan $b$ and the wing area $S$, returns the aspect ratio $A$ of an aircraft.
-
     $$
     A = \frac{b^2}{S}
     $$
-
     where
 
     | Symbol | Dimension | Description  |
@@ -140,33 +168,56 @@ def compute_aspect_ratio(
     | $A$    | -         | Aspect ratio |
     | $b$    | [length]  | Wingspan     |
     | $S$    | [area]    | Wing area    |
+
+    
+    References
+    ----------
+    [Eqn. (3.3) in Young (2018)](https://doi.org/10.1002/9781118534786)
+    
+    See Also
+    --------
+    [Aspect Ratio on Wikipedia](https://en.wikipedia.org/wiki/Aspect_ratio_(aeronautics))
+
     
     Parameters
     ----------
-    b : pint.Quantity
-        Wingspan, in units of [length]
-    S : pint.Quantity
-        Wing area, in units of [area]
+    df : pd.DataFrame
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the columns:
 
-    See Also
-    --------
-    - [Eqn. (3.3) in Young (2018)](https://doi.org/10.1002/9781118534786)
-    - [Aspect Ratio on Wikipedia](https://en.wikipedia.org/wiki/Aspect_ratio_(aeronautics))
+        | Column Name | Dimension  |
+        |-------------|------------|
+        | `Wingspan`  | [length]   |
+        | `Wing Area` | [area]     |
 
     Returns
     -------
-    pint.Quantity
-        Aspect ratio, dimensionless
+    pd.DataFrame
+        [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with an additional column `Aspect Ratio` [dimensionless] added.
+
+    Raises
+    ------
+    ValueError
+        If the input DataFrame does not contain the required columns.
 
     Example
     -------
-    ```python
-    >>> from aircraftdetective import ureg
-    >>> compute_aspect_ratio(
-    >>>     b=35.8 * ureg.meter,
-    >>>     S=122.6 * ureg.meter**2
-    >>> )
-    10.453833605220227 dimensionless
+    ```pyodide install='aircraftdetective'
+    import pandas as pd
+    from aircraftdetective.calculations.aerodynamics import compute_aspect_ratio
+    df = pd.DataFrame(
+        {
+            'Wingspan': pd.Series([60.3, 64.8], dtype='pint[m]'),
+            'Wing Area': pd.Series([361, 443], dtype='pint[m**2]'),
+        }
+    )
+    compute_aspect_ratio(df=df)
     ```
     """
-    return (b**2)/S
+    df_func = df.copy()
+    required_columns = ['Wingspan', 'Wing Area']
+    missing_columns = [col for col in required_columns if col not in df_func.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
+    df_func['Aspect Ratio'] = (df_func['Wingspan']**2) / df_func['Wing Area']
+    df_func['Aspect Ratio'] = df_func['Aspect Ratio'].pint.to_base_units()
+    return df_func

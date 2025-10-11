@@ -1,10 +1,12 @@
 # https://pint.readthedocs.io/en/stable/getting/pint-in-your-projects.html#having-a-shared-registry
-from pint import UnitRegistry
+from pint import UnitRegistry, set_application_registry
 ureg = UnitRegistry()
+set_application_registry(ureg)
+
 import pint_pandas
 
 __all__ = (
     "__version__",
 )
 
-__version__ = "0.0.3"
+__version__ = "1.0.0"
