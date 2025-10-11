@@ -1,17 +1,23 @@
 # `aircraftdetective` Changelog
 
-The format of this log is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+!!! note
+    The format of this log is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
+    This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## `1.0.0` (12. October 2025)
+
+!!! note
+    Initial stable release.
 
 ## `0.0.3` (08. August 2025)
 
-## Improvements
+### Improvements
 
 - Added the `calculations.aerodynamics` module with functions for aerodynamic calculations.
 
 ## `0.0.2` (08. August 2025)
 
-## Improvements
+### Improvements
 
 - Updated the `publish_pypi.yml` workflow to fix signing the package on PyPI.
 

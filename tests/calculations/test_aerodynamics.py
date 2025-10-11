@@ -1,3 +1,4 @@
+# %%
 import pandas as pd
 import pint_pandas
 import pytest
@@ -68,23 +69,19 @@ class TestComputeLiftToDragRatio:
         assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
         assert ld_ratio.dimensionless
 
-    def test_wrong_units_returns_dimensioned_quantity(self, ld_ratio_input_df_si):
+    def test_wrong_units_raises_value_error(self, ld_ratio_input_df_si):
         """
         Tests that providing an input with incorrect dimensions (e.g., mass for range)
-        results in a dimensioned quantity, not an error.
+        raises a ValueError because the result is not dimensionless.
         """
         df_wrong = ld_ratio_input_df_si.copy()
-        # Change Range from [length] to [mass]
+        # Intentionally introduce wrong units: Change Range from [length] to [mass]
         df_wrong['Payload/Range: Range at Point B'] = pd.Series([3900], dtype='pint[kg]')
         df_wrong['Payload/Range: Range at Point C'] = pd.Series([6500], dtype='pint[kg]')
 
-        result_df = compute_lift_to_drag_ratio(df=df_wrong, beta=0.04)
-        result_units = result_df['L/D'].pint.units
-
-        # L/D should be dimensionless. The incorrect calculation results in [mass]/[length].
-        assert not result_units.dimensionless
-        assert result_units.dimensionality == ureg.parse_expression('mass/length').dimensionality
-
+        # The function should now raise a ValueError due to the unit mismatch.
+        with pytest.raises(ValueError, match="Calculated L/D is not dimensionless"):
+            compute_lift_to_drag_ratio(df=df_wrong, beta=0.04)
 
     def test_missing_column(self, ld_ratio_input_df_si):
         """

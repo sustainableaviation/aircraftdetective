@@ -148,6 +148,8 @@ def compute_lift_to_drag_ratio(
     K_average = (K_B + K_C) / 2
     df_func['L/D'] = K_average * g * df_func['TSFC (cruise)'] / df_func['Cruise Speed']
     df_func['L/D'] = df_func['L/D'].pint.to_base_units()
+    if not df_func['L/D'].pint.units.dimensionless:
+        raise ValueError("Calculated L/D is not dimensionless, please check the input units.")
     return df_func
 
 
