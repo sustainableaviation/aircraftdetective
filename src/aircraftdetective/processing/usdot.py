@@ -11,6 +11,7 @@ from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_USDOT_T2_FILE,
     PATH_ZENODO_USDOT_ACFT_TYPES_FILE
 )
+from aircraftdetective.data.constants import jeta1_energydensity
 
 def process_data_usdot_t2(
     path_csv_t2: str = PATH_ZENODO_USDOT_T2_FILE,
@@ -280,6 +281,8 @@ def process_data_usdot_t2(
     df_t2['Fuel Flow'] = df_t2['AIRCRAFT_FUELS']/df_t2['HOURS_AIRBORNE']
     df_t2['Airborne Efficiency'] = df_t2['HOURS_AIRBORNE']/df_t2['ACRFT_HRS_RAMPTORAMP']
     df_t2['SLF']= df_t2['REV_PAX_MILES']/df_t2['AVL_SEAT_MILES']
+    df_t2['Energy Use (per ASK)'] = df_t2['Fuel/Available Seat Distance'] * jeta1_energydensity
+    df_t2['Energy Use (per RPK)'] = df_t2['Energy Use (per ASK)'].pint.to('MJ/km')
 
     # SANITY CHECKS
 
@@ -294,6 +297,7 @@ def process_data_usdot_t2(
         'Fuel/Available Seat Distance',
         'Fuel/Revenue Seat Distance',
         'Fuel Flow',
+        'Energy Use (per ASK)',
         'Airborne Efficiency',
         'SLF',
     ]

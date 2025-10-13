@@ -39,6 +39,7 @@ class TestProcessDataUsdotT2:
             'Fuel/Available Seat Distance',
             'Fuel/Revenue Seat Distance',
             'Fuel Flow',
+            'Energy Use (per ASK)',
             'Airborne Efficiency',
             'SLF',
         ]
