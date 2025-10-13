@@ -8,7 +8,8 @@ from aircraftdetective.utility.tabular import (
     rename_columns_and_set_units,
     _return_short_units,
     export_typed_dataframe_to_excel,
-    left_merge_wildcard
+    left_merge_wildcard,
+    update_column_data,
 )
 
 
@@ -229,7 +230,7 @@ class TestReturnShortUnits:
 
 
 class TestExportTypedDataFrameToExcel:
-    """Test suite for the  export_typed_dataframe_to_excel` function."""
+    """Test suite for the  `export_typed_dataframe_to_excel` function."""
 
     @pytest.fixture
     def sample_typed_df(self) -> pd.DataFrame:
@@ -271,6 +272,177 @@ class TestExportTypedDataFrameToExcel:
         expected_data['Thrust'] = expected_data['Thrust'].astype('float64')
         
         assert_frame_equal(data_df, expected_data)
+
+
+class TestUpdateColumnData:
+    """Test suite for the `update_column_data` function."""
+
+    @pytest.fixture
+    def df_main_fixture(self) -> pd.DataFrame:
+        """Main DataFrame with some missing values."""
+        data = {
+            "ID": [1, 2, 3, 4],
+            "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
+            "ValueA": [100.0, np.nan, 300.0, 400.0],
+            "ValueB": [10.0, 20.0, np.nan, 40.0],
+        }
+        return pd.DataFrame(data)
+
+    @pytest.fixture
+    def df_other_fixture(self) -> pd.DataFrame:
+        """'Other' DataFrame with updated values."""
+        data = {
+            "ID": [2, 4, 5],  # ID 2 matches, ID 4 matches, ID 5 is new
+            "Description": ["Bravo_new", "Delta_new", "Echo_new"],
+            "ValueA": [250.0, 450.0, 500.0],
+            "ValueB": [25.0, 45.0, 55.0],
+        }
+        return pd.DataFrame(data)
+
+    def test_basic_update_fills_nan(self, df_main_fixture, df_other_fixture):
+        """Tests if NaN values in the main DataFrame are filled correctly."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+
+        # Expected result: ValueA for ID 2 is updated, ID 4 is also updated (overwritten)
+        expected_data = {
+            "ID": [1, 2, 3, 4],
+            "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
+            "ValueA": [100.0, 250.0, 300.0, 450.0],
+            "ValueB": [10.0, 20.0, np.nan, 40.0],
+        }
+        expected_df = pd.DataFrame(expected_data)
+
+        assert_frame_equal(result_df, expected_df)
+
+    def test_overwrite_existing_values(self, df_main_fixture, df_other_fixture):
+        """Tests if existing, non-NaN values are correctly overwritten."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+        # Value for ID 4 was 400.0 and should be overwritten by 450.0
+        assert result_df.loc[result_df["ID"] == 4, "ValueA"].iloc[0] == 450.0
+
+    def test_multiple_column_update(self, df_main_fixture, df_other_fixture):
+        """Tests if the function can update multiple columns at once."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA", "ValueB"],
+        )
+
+        expected_data = {
+            "ID": [1, 2, 3, 4],
+            "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
+            "ValueA": [100.0, 250.0, 300.0, 450.0],
+            "ValueB": [10.0, 25.0, np.nan, 45.0],
+        }
+        expected_df = pd.DataFrame(expected_data)
+
+        assert_frame_equal(result_df, expected_df)
+
+    def test_no_side_effects(self, df_main_fixture, df_other_fixture):
+        """Ensures the original input DataFrames are not modified."""
+        df_main_original = df_main_fixture.copy()
+        df_other_original = df_other_fixture.copy()
+
+        update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+
+        assert_frame_equal(df_main_fixture, df_main_original)
+        assert_frame_equal(df_other_fixture, df_other_original)
+
+    def test_no_matching_rows_in_other(self, df_main_fixture):
+        """Tests behavior when the other DataFrame has no matching keys."""
+        df_other_nomatch = pd.DataFrame({
+            "ID": [10, 11],
+            "ValueA": [1000.0, 1100.0],
+        })
+
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_nomatch,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+
+        # The result should be identical to the original main DataFrame
+        assert_frame_equal(result_df, df_main_fixture)
+
+    def test_empty_other_dataframe(self, df_main_fixture):
+        """Tests behavior with an empty 'other' DataFrame."""
+        df_other_empty = pd.DataFrame(columns=["ID", "ValueA", "ValueB"])
+
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_empty,
+            merge_column="ID",
+            list_columns=["ValueA", "ValueB"],
+        )
+
+        # The result should be identical to the original main DataFrame
+        assert_frame_equal(result_df, df_main_fixture)
+
+    def test_no_new_rows_are_added(self, df_main_fixture, df_other_fixture):
+        """Confirms that rows existing only in 'other' are not added to 'main'."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+        assert len(result_df) == len(df_main_fixture)
+        assert 5 not in result_df["ID"].values
+
+    def test_missing_columns_raise_key_error(self, df_main_fixture, df_other_fixture):
+        """Tests if a KeyError is raised for missing columns."""
+        # Test missing merge_column in main_df
+        with pytest.raises(KeyError, match="'WrongID' not in main DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture,
+                merge_column="WrongID",
+                list_columns=["ValueA"],
+            )
+
+        # Test missing merge_column in other_df
+        with pytest.raises(KeyError, match="'ID' not in other DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture.rename(columns={"ID": "WrongID"}),
+                merge_column="ID",
+                list_columns=["ValueA"],
+            )
+
+        # Test missing update column in main_df
+        with pytest.raises(KeyError, match="'ValueC' not in main DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture,
+                merge_column="ID",
+                list_columns=["ValueC"],
+            )
+
+        # Test missing update column in other_df
+        with pytest.raises(KeyError, match="'ValueB' not in other DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture.drop(columns=["ValueB"]),
+                merge_column="ID",
+                list_columns=["ValueA", "ValueB"],
+            )
 
 
 class TestMergeWildcard:

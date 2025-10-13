@@ -6,7 +6,8 @@ The `aircraftdetective` package was written by [Michael Weinold](https://www.lin
 
 ## Associated Publications
 
-- Dataset on Zenodo: https://doi.org/10.5281/zenodo.14382100
+!!! note
+    Aircraft and engine data is stored in a [Zenodo repository](https://doi.org/10.5281/zenodo.14382100) under a [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
 
 ## Funding
 

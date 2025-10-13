@@ -5,13 +5,14 @@ copyright: © Paul Scherrer Institute (PSI) | Code under MIT License
 nav:
   - Home: 'index.md'
   - About: 'about.md'
+  - Tutorial: 'tutorial.ipynb'
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
   - API (Calculations):
     - Engines: 'api/engines.md'
-    - Aerodynamics: 'api/aerodynamics.md'
-    - Operations: 'api/operations.md'
-    - Decomposition: 'api/decomposition.md'
+    - Aerodynamics: 'api/calculations/aerodynamics.md'
+    - Operations: 'api/calculations/operations.md'
+    - Decomposition: 'api/calculations/decomposition.md'
   - API (Data Processing):
     - USDOT Schedule T-2 Data: 'api/processing/usdot.md'
     - aircraft-database.com: 'api/processing/acftdb.md'
@@ -62,6 +63,10 @@ plugins:
   - markdown-exec
   - autorefs
   - include-markdown
+  - mkdocs-jupyter:
+      execute: false
+      include_source: True
+      include_requirejs: true
 markdown_extensions:
   - admonition
   - pymdownx.superfences

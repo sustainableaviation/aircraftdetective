@@ -164,17 +164,18 @@ def update_column_data(
     merge_column: str,
     list_columns: list[str],
 ) -> pd.DataFrame:
-    """_summary_
-
-    _extended_summary_
+    r"""
+    Given two DataFrames, updates the values in the first DataFrame 
+    with the values from the second DataFrame for the specified columns, 
+    based on a common merge column.
 
     Given a first DataFrame of the kind:
 
     | Aircraft Designation | (...) | TSFC (cruise) |
     |----------------------|-------|---------------|
-    | B707-120             | (...) |               |
+    | B707-120             | (...) | NaN           |
     | B737-200C            | (...) | 0.5           |
-    | A380-800             | (...) |               |
+    | A380-800             | (...) | NaN           |
 
     and a second DataFrame of the kind:
 
@@ -183,43 +184,50 @@ def update_column_data(
     | B707-120             | (...) | 0.6           |
     | A380-800             | (...) | 0.7           |
 
-    and a list of columns to update:
-
-    list_columns = ['TSFC (cruise)']
-
-    and a merge column:
-
-    merge_column = 'Aircraft Designation'
-
+    for the merge column `Aircraft Designation`, 
+    and the list of columns to update `['TSFC (cruise)']`,
     the function will update the first DataFrame with the values from the second DataFrame:
 
     | Aircraft Designation | (...) | TSFC (cruise) |
     |----------------------|-------|---------------|
-    | B707-120             | (...) | 0.6           |
+    | B707-120             | (...) | **0.6**       |
     | B737-200C            | (...) | 0.5           |
-    | A380-800             | (...) | 0.7           |
-
+    | A380-800             | (...) | **0.7**       |
 
     Parameters
     ----------
     df_main : pd.DataFrame
-        _description_
+        Main DataFrame to be updated.
     df_other : pd.DataFrame
-        _description_
+        Other DataFrame to update from.
     merge_column : str
-        _description_
+        Column name to merge on.
     list_columns : list[str]
-        _description_
-
-    See Also
-    --------
-    - [GitHub Issues/PR at `pint-pandas`](https://github.com/hgrecco/pint-pandas/pull/247)
+        List of column names to update. These columns must exist in both DataFrames.
 
     Returns
     -------
     pd.DataFrame
-        _description_
+        Updated DataFrame.
+
+    Raises
+    ------
+    KeyError
+        If the `merge_column` or any of the `list_columns` do not exist in either DataFrame.
     """
+    df_main = df_main.copy()
+    df_other = df_other.copy()
+
+    if merge_column not in df_main.columns:
+        raise KeyError(f"'{merge_column}' not in main DataFrame columns")
+    if merge_column not in df_other.columns:
+        raise KeyError(f"'{merge_column}' not in other DataFrame columns")
+    for col in list_columns:
+        if col not in df_main.columns:
+            raise KeyError(f"'{col}' not in main DataFrame columns")
+        if col not in df_other.columns:
+            raise KeyError(f"'{col}' not in other DataFrame columns")
+
     df_main_updated = pd.merge(
         left=df_main,
         right=df_other[list_columns + [merge_column]],
