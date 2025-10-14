@@ -246,6 +246,8 @@ def update_column_data(
     return df_main_updated
 
 
+import pandas as pd
+
 def left_merge_wildcard(
     df_left: pd.DataFrame,
     df_right: pd.DataFrame,
@@ -311,37 +313,60 @@ def left_merge_wildcard(
     df_l = df_left.copy()
     df_r = df_right.copy()
 
-    left_keys: list = df_l[left_on].drop_duplicates().tolist()
-    right_keys: list = df_r[right_on].drop_duplicates().tolist()
+    left_keys = df_l[left_on].drop_duplicates().tolist()
+    right_keys = df_r[right_on].drop_duplicates().tolist()
 
-    dict_matching = {}
-    for key in left_keys:
-        if isinstance(key, str) and '*' in key: # eg. 'CFM56-5*'
-            pattern = key.split('*')[0] # eg. 'CFM56-5'
-            matching_rights = [ # eg. ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']
-                rk for rk
-                in right_keys
-                if isinstance(rk, str)
-                and rk.startswith(pattern)
-            ]
-            dict_matching[key] = matching_rights # eg. {'CFM56-5*': ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']}
-        else:
-            dict_matching[key] = [key] # eg. {'V2500-A1': ['V2500-A1']}
+    # Pre-process left keys for efficient lookup
+    wildcard_patterns = {
+        key: key.split('*')[0]
+        for key in left_keys
+        if isinstance(key, str) and '*' in key
+    }
+    # Use a set for fast O(1) lookups of exact keys
+    exact_keys = {key for key in left_keys if key not in wildcard_patterns}
 
-    for key in dict_matching.keys():
-        df_r.loc[
-            df_r[right_on].isin(dict_matching[key]),
-            'key_wildcard'
-        ] = key
+    # Build a definitive map from each right_key to its single BEST left_key match
+    key_map = {}
+    for rk in right_keys:
+        # Priority 1: An exact match is always the best match.
+        if rk in exact_keys:
+            key_map[rk] = rk
+            continue
 
+        # Priority 2: If no exact match, find the best wildcard match.
+        # This only applies if the right key is a string.
+        if not isinstance(rk, str):
+            continue
+
+        matching_wildcards = [
+            lk for lk, pattern in wildcard_patterns.items() if rk.startswith(pattern)
+        ]
+
+        # If any wildcard matches were found, the best is the most specific (longest).
+        if matching_wildcards:
+            best_match = max(matching_wildcards, key=len)
+            key_map[rk] = best_match
+
+    # Use the unambiguous map to create the new join key in the right DataFrame.
+    # Keys in df_r that have no match in the map will be assigned NaN.
+    df_r['key_wildcard'] = df_r[right_on].map(key_map)
+
+    # The groupby will automatically drop rows where 'key_wildcard' is NaN,
+    # satisfying the "silent discarding is ok" requirement.
     numeric_cols = df_r.select_dtypes(include='number').columns
     object_cols = df_r.select_dtypes(exclude='number').columns.drop([right_on, 'key_wildcard'], errors='ignore')
 
     agg_rules = {col: 'mean' for col in numeric_cols}
     agg_rules.update({col: 'first' for col in object_cols})
 
-    if not agg_rules:
-        df_r_agg = pd.DataFrame({'key_wildcard': list(dict_matching.keys())}).set_index('key_wildcard')
+    if 'key_wildcard' not in df_r or df_r['key_wildcard'].isnull().all():
+        # Handle case where no matches were found at all
+        df_r_agg = pd.DataFrame(columns=df_r.columns.drop(right_on)).set_index('key_wildcard' if 'key_wildcard' in df_r.columns else [])
+    elif not agg_rules:
+        # Handle case where there are no columns to aggregate
+        unique_matched_keys = df_r['key_wildcard'].dropna().unique()
+        df_r_agg = pd.DataFrame(index=unique_matched_keys)
+        df_r_agg.index.name = 'key_wildcard'
     else:
         df_r_agg = df_r.groupby('key_wildcard').agg(agg_rules)
 
@@ -350,5 +375,5 @@ def left_merge_wildcard(
         right=df_r_agg,
         how='left',
         left_on=left_on,
-        right_on='key_wildcard',
+        right_index=True,
     )
