@@ -4,7 +4,7 @@ import pandas as pd
 from aircraftdetective.utility.statistics import _r_squared
 
 
-def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
+def compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     Computes the relative improvement $\Delta\%x$ between times $t=0$ and $t=T$
     $$
@@ -82,7 +82,7 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     ----------
     df : pd.DataFrame
         DataFrame containing the aircraft sub-efficiency data.  
-        Must contain at least the columns: `['YOI', 'Type', 'EU', 'TSFC', 'OEW/Exit Limit', 'L/D']`
+        Must contain at least the columns: `['YOI', 'Type', 'Energy Use (per ASK)', 'TSFC (cruise)', 'OEW/Exit Limit', 'L/D']`
 
     Returns
     -------
@@ -90,9 +90,9 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with additional columns for relative improvements in EU, TSFC, OEW/Exit Limit, and L/D.  
         Of the kind:  
         
-        | Delta%(EU) | Delta%(TSFC) | Delta%(OEW/Exit Limit) | Delta%(L/D) |
-        |------------|--------------|------------------------|-------------|
-        | ...        | ...          | ...                    | ...         |
+        | Delta%(Energy use (per ASK)) | Delta%(TSFC (cruise)) | Delta%(OEW/Exit Limit) | Delta%(L/D) |
+        |------------------------------|-----------------------|------------------------|-------------|
+        | ...                          | ...                   | ...                    | ...         |
 
     Raises
     ------
@@ -104,24 +104,13 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     -------
     ```pyodide install='aircraftdetective'
     import pandas as pd
-    from aircraftdetective.calculations.decomposition import _compute_efficiency_improvement_metrics
-    data = {
-        'YOI': [2000, 2005, 2010],
-        'Type': ['Narrow', 'Narrow', 'Wide'],
-        'EU': [50.0, 45.0, 40.0],
-        'TSFC': [0.6, 0.55, 0.5],
-        'OEW/Exit Limit': [300.0, 280.0, 250.0],
-        'L/D': [15.0, 16.0, 18.0]
-    }
-    df = pd.DataFrame(data)
-    df_improvements = _compute_efficiency_improvement_metrics(df)
-    print(df_improvements)
+    from aircraftdetective.calculations.decomposition import compute_efficiency_improvement_metrics
     ```
     """
     if not isinstance(df, pd.DataFrame) or df.empty:
         raise ValueError("Input `df` must be a non-empty Pandas DataFrame.")
 
-    list_required_columns = ['YOI', 'Type', 'EU', 'TSFC', 'OEW/Exit Limit', 'L/D']
+    list_required_columns = ['YOI', 'Type', 'Energy Use (per ASK)', 'TSFC (cruise)', 'OEW/Exit Limit', 'L/D']
     for col in list_required_columns:
         if col not in df.columns:
             raise ValueError(f"Required column '{col}' not found in df columns")
@@ -136,8 +125,8 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     grouped = df_func.groupby('Type')
 
     metrics_inverse = {
-        'EU': True, # lower is better
-        'TSFC': True, # lower is better
+        'Energy Use (per ASK)': True, # lower is better
+        'TSFC (cruise)': True, # lower is better
         'OEW/Exit Limit': True, # lower is better
         'L/D': False # higher is better
     }
@@ -150,8 +139,8 @@ def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
             df_func[metric] = ((df_func[metric] / baseline) - 1) * 100
 
     df_func.rename(columns={
-        'EU': 'Delta%(EU)',
-        'TSFC': 'Delta%(TSFC)',
+        'Energy Use (per ASK)': 'Delta%(Energy Use (per ASK))',
+        'TSFC (cruise)': 'Delta%(TSFC (cruise))',
         'OEW/Exit Limit': 'Delta%(OEW/Exit Limit)',
         'L/D': 'Delta%(L/D)'
     }, inplace=True)

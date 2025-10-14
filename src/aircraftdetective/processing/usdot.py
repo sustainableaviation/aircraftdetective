@@ -282,12 +282,21 @@ def process_data_usdot_t2(
     df_t2['Airborne Efficiency'] = df_t2['HOURS_AIRBORNE']/df_t2['ACRFT_HRS_RAMPTORAMP']
     df_t2['SLF']= df_t2['REV_PAX_MILES']/df_t2['AVL_SEAT_MILES']
     df_t2['Energy Use (per ASK)'] = df_t2['Fuel/Available Seat Distance'] * jeta1_energydensity
-    df_t2['Energy Use (per RPK)'] = df_t2['Energy Use (per ASK)'].pint.to('MJ/km')
+    df_t2['Energy Use (per ASK)'] = df_t2['Energy Use (per ASK)'].pint.to('MJ/km')
+    df_t2['Energy Intensity (per RPK)'] = df_t2['Fuel/Revenue Seat Distance'] * jeta1_energydensity
+    df_t2['Energy Intensity (per RPK)'] = df_t2['Energy Intensity (per RPK)'].pint.to('MJ/km')
+    df_t2.rename(
+        columns={
+            'REV_PAX_MILES': 'Revenue Passenger Distance',
+        },
+        inplace=True
+    )
 
     # SANITY CHECKS
 
-    df_t2 = df_t2.loc[df_t2['REV_PAX_MILES'] <= df_t2['AVL_SEAT_MILES']]
+    df_t2 = df_t2.loc[df_t2['Revenue Passenger Distance'] <= df_t2['AVL_SEAT_MILES']]
     df_t2 = df_t2.loc[df_t2['HOURS_AIRBORNE'] <= df_t2['ACRFT_HRS_RAMPTORAMP']]
+    df_t2 = df_t2.loc[df_t2['Energy Use (per ASK)'] < 10 * ureg('MJ/km')]
 
     # RETURN
 
@@ -298,8 +307,10 @@ def process_data_usdot_t2(
         'Fuel/Revenue Seat Distance',
         'Fuel Flow',
         'Energy Use (per ASK)',
+        'Energy Intensity (per RPK)',
         'Airborne Efficiency',
         'SLF',
+        'Revenue Passenger Distance',
     ]
 
     df_t2 = df_t2[list_return_columns]

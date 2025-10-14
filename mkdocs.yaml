@@ -5,7 +5,9 @@ copyright: © Paul Scherrer Institute (PSI) | Code under MIT License
 nav:
   - Home: 'index.md'
   - About: 'about.md'
-  - Tutorial: 'tutorial.ipynb'
+  - Tutorials:
+    - Overall Efficiency: 'tutorials/overall.ipynb'
+    - Engine Efficiency: 'tutorials/engines.ipynb'
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
   - API (Calculations):

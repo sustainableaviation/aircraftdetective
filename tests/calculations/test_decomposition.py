@@ -4,7 +4,7 @@ import pandas as pd
 
 from aircraftdetective.calculations.decomposition import (
     _compute_lmdi_factor_contributions,
-    _compute_efficiency_improvement_metrics
+    compute_efficiency_improvement_metrics
 )
 
 
@@ -33,7 +33,7 @@ def sample_aircraft_data() -> pd.DataFrame:
 
 
 class TestComputeEfficiencyImprovementMetrics:
-    """Test suite for the `_compute_efficiency_improvement_metrics` function."""
+    """Test suite for the `compute_efficiency_improvement_metrics` function."""
 
     def test_successful_computation_mixed_types(self, sample_aircraft_data):
         """
@@ -83,7 +83,7 @@ class TestComputeEfficiencyImprovementMetrics:
         }
         expected_df = pd.DataFrame(expected_data)
 
-        result_df = _compute_efficiency_improvement_metrics(sample_aircraft_data)
+        result_df = compute_efficiency_improvement_metrics(sample_aircraft_data)
 
         expected_df = expected_df.sort_values(by=['Type', 'YOI']).reset_index(drop=True)
         result_df = result_df.sort_values(by=['Type', 'YOI']).reset_index(drop=True)
@@ -99,7 +99,7 @@ class TestComputeEfficiencyImprovementMetrics:
             'OEW/Exit Limit': [250, 300], 'L/D': [12, 15]
         }
         df = pd.DataFrame(data)
-        result_df = _compute_efficiency_improvement_metrics(df)
+        result_df = compute_efficiency_improvement_metrics(df)
 
         for col in result_df.columns:
             if col.startswith('Delta%'):
@@ -108,18 +108,18 @@ class TestComputeEfficiencyImprovementMetrics:
     def test_raises_error_on_empty_dataframe(self):
         """Verifies that an empty DataFrame raises a ValueError."""
         with pytest.raises(ValueError, match="must be a non-empty Pandas DataFrame"):
-            _compute_efficiency_improvement_metrics(pd.DataFrame())
+            compute_efficiency_improvement_metrics(pd.DataFrame())
 
     def test_raises_error_on_none_input(self):
         """Verifies that a None input raises a ValueError."""
         with pytest.raises(ValueError, match="must be a non-empty Pandas DataFrame"):
-            _compute_efficiency_improvement_metrics(None)
+            compute_efficiency_improvement_metrics(None)
 
     def test_raises_error_on_missing_column(self, sample_aircraft_data):
         """Verifies that a missing required column raises a ValueError."""
         df = sample_aircraft_data.drop(columns=['EU'])
         with pytest.raises(ValueError, match="Required column 'EU' not found"):
-            _compute_efficiency_improvement_metrics(df)
+            compute_efficiency_improvement_metrics(df)
 
     def test_raises_error_on_all_nan_column(self, sample_aircraft_data):
         """Verifies that a column with all NaN values raises a ValueError."""
@@ -127,14 +127,14 @@ class TestComputeEfficiencyImprovementMetrics:
         # FIX: Use pandas native NA to represent missing values and avoid NameError
         df['L/D'] = pd.NA
         with pytest.raises(ValueError, match="Column 'L/D' cannot be all NaN"):
-            _compute_efficiency_improvement_metrics(df)
+            compute_efficiency_improvement_metrics(df)
 
     def test_raises_error_on_non_numeric_column(self, sample_aircraft_data):
         """Verifies that a non-numeric metric column raises a ValueError."""
         df = sample_aircraft_data.copy()
         df['TSFC'] = df['TSFC'].astype(str)
         with pytest.raises(ValueError, match="Column 'TSFC' must be of a numeric type"):
-            _compute_efficiency_improvement_metrics(df)
+            compute_efficiency_improvement_metrics(df)
 
 
 class TestLmdiFactorContributions:
