@@ -5,7 +5,7 @@ import pint_pandas
 from pathlib import Path
 from pandas.testing import assert_frame_equal
 from aircraftdetective.utility.tabular import (
-    rename_columns_and_set_units,
+    _rename_columns_and_set_units,
     _return_short_units,
     export_typed_dataframe_to_excel,
     left_merge_wildcard,
@@ -89,7 +89,7 @@ class TestValidateDataFrameColumnsWithUnits:
 
 
 class TestRenameColumnsAndSetUnits:
-    """Test suite for the `rename_columns_and_set_units` function."""
+    """Test suite for the `_rename_columns_and_set_units` function."""
 
     @pytest.fixture
     def sample_df(self) -> pd.DataFrame:
@@ -114,7 +114,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -145,7 +145,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=True,
             column_names_and_units=column_map
@@ -175,7 +175,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -200,7 +200,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -221,7 +221,7 @@ class TestRenameColumnsAndSetUnits:
         column_map = [("A", "New A", "int")]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=empty_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -251,7 +251,7 @@ class TestRenameColumnsAndSetUnits:
             # Note: The provided snippet was slightly modified to pass this test
             # by being more robust. To test the original code, the list comprehension
             # should be: `[col[1] for col in column_names_and_units]`
-            rename_columns_and_set_units(
+            _rename_columns_and_set_units(
                 df=sample_df.copy(),
                 return_only_renamed_columns=True,
                 column_names_and_units=column_map

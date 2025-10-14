@@ -71,7 +71,7 @@ def _validate_dataframe_columns_with_units(
             )
 
 
-def rename_columns_and_set_units(
+def _rename_columns_and_set_units(
     df: pd.DataFrame,
     return_only_renamed_columns: bool,
     column_names_and_units: list[tuple[str, str, str]],

@@ -196,7 +196,7 @@ def scale_engine_data_from_icao_emissions_database(
     )
     df_engines['Final Test Date'] = df_engines['Final Test Date'].dt.year.astype('Int64')
 
-    df_engines = tabular.rename_columns_and_set_units(
+    df_engines = tabular._rename_columns_and_set_units(
         df=df_engines,
         return_only_renamed_columns=True,
         column_names_and_units=[

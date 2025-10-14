@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pint
 ureg = pint.get_application_registry()
-from aircraftdetective.utility.tabular import rename_columns_and_set_units
+from aircraftdetective.utility.tabular import _rename_columns_and_set_units
 
 from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_AIRCRAFT_DATABASE_AIRCRAFT_TYPES_FILE,
@@ -226,7 +226,7 @@ def _read_engine_database(
         axis=1
     )
 
-    df = rename_columns_and_set_units(
+    df = _rename_columns_and_set_units(
         df=df,
         column_names_and_units=[
             ('id', '_id_engine', 'str'),
@@ -342,7 +342,7 @@ def _read_aircraft_database(
         axis=1
     )
 
-    df = rename_columns_and_set_units(
+    df = _rename_columns_and_set_units(
         df=df,
         column_names_and_units=[
             ('id', '_id_aircraft', 'str'),

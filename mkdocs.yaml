@@ -6,8 +6,8 @@ nav:
   - Home: 'index.md'
   - About: 'about.md'
   - Tutorials:
-    - Overall Efficiency: 'tutorials/overall.ipynb'
-    - Engine Efficiency: 'tutorials/engines.ipynb'
+    #- Overall Efficiency: 'tutorials/overall.ipynb'
+    #- Engine Efficiency: 'tutorials/engines.ipynb'
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
   - API (Calculations):
