@@ -10,7 +10,82 @@ from aircraftdetective.utility.tabular import (
     export_typed_dataframe_to_excel,
     left_merge_wildcard,
     update_column_data,
+    _validate_dataframe_columns_with_units,
 )
+
+
+class TestValidateDataFrameColumnsWithUnits:
+    """Test suite for the _validate_dataframe_columns_with_units function."""
+
+    @pytest.fixture
+    def sample_schema(self) -> dict[str, str]:
+        """Provides a sample schema for validation tests."""
+        return {
+            'length_col': '[length]',
+            'mass_col': '[mass]',
+            'velocity_col': '[length]/[time]',
+        }
+
+    @pytest.fixture
+    def valid_df(self) -> pd.DataFrame:
+        """Provides a DataFrame that is valid against the sample_schema."""
+        return pd.DataFrame({
+            'length_col': pd.Series([10], dtype='pint[m]'),
+            'mass_col': pd.Series([5], dtype='pint[kg]'),
+            'velocity_col': pd.Series([20], dtype='pint[m/s]'),
+        })
+
+    def test_success_case(self, valid_df, sample_schema):
+        """Tests that validation passes for a DataFrame that matches the schema."""
+        try:
+            _validate_dataframe_columns_with_units(valid_df, sample_schema)
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"Validation unexpectedly failed with error: {e}")
+
+    def test_missing_column(self, valid_df, sample_schema):
+        """Tests that a ValueError is raised if a required column is missing."""
+        df_missing = valid_df.drop(columns=['mass_col'])
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['mass_col'\\]"):
+            _validate_dataframe_columns_with_units(df_missing, sample_schema)
+
+    def test_wrong_dimension(self, valid_df, sample_schema):
+        """Tests that a ValueError is raised if a column has the wrong dimension."""
+        df_wrong_dim = valid_df.copy()
+        df_wrong_dim['length_col'] = pd.Series([10], dtype='pint[kg]')
+        # Match the full, specific error message to ensure the test is precise.
+        expected_msg = "Column 'length_col' has incorrect units. Expected dimensionality of '\\[length\\]', but got '\\[mass\\]'."
+        with pytest.raises(ValueError, match=expected_msg):
+            _validate_dataframe_columns_with_units(df_wrong_dim, sample_schema)
+
+    def test_not_a_pint_series(self, valid_df, sample_schema):
+        """Tests that a TypeError is raised if a column is not a pint-dtype Series."""
+        df_not_pint = valid_df.copy()
+        df_not_pint['mass_col'] = pd.Series([5], dtype='int64')
+        with pytest.raises(TypeError, match="Column 'mass_col' is not a pint-dtype Series and cannot be validated."):
+            _validate_dataframe_columns_with_units(df_not_pint, sample_schema)
+
+    def test_extra_columns_are_ignored(self, valid_df, sample_schema):
+        """Tests that validation passes even if the DataFrame has extra columns not in the schema."""
+        df_extra = valid_df.copy()
+        df_extra['extra_col'] = pd.Series([100], dtype='pint[s]')
+        try:
+            _validate_dataframe_columns_with_units(df_extra, sample_schema)
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"Validation with extra columns unexpectedly failed: {e}")
+
+    def test_empty_dataframe(self, sample_schema):
+        """Tests that validation fails correctly for an empty DataFrame."""
+        empty_df = pd.DataFrame()
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['length_col', 'mass_col', 'velocity_col'\\]"):
+            _validate_dataframe_columns_with_units(empty_df, sample_schema)
+
+    def test_empty_schema(self, valid_df):
+        """Tests that validation passes for any DataFrame if the schema is empty."""
+        empty_schema = {}
+        try:
+            _validate_dataframe_columns_with_units(valid_df, empty_schema)
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"Validation with an empty schema unexpectedly failed: {e}")
 
 
 class TestRenameColumnsAndSetUnits:

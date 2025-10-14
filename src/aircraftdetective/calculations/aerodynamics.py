@@ -4,7 +4,8 @@ import numpy as np
 import pint_pandas
 import pint
 ureg = pint.get_application_registry()
-
+from aircraftdetective.utility.tabular import _validate_dataframe_columns_with_units
+from aircraftdetective.data.constants import g_acceleration
 
 def compute_lift_to_drag_ratio(
     df: pd.DataFrame,
@@ -128,28 +129,33 @@ def compute_lift_to_drag_ratio(
     """
     if df.empty:
         raise ValueError("DataFrame is empty.")
-    required_columns = [
-        'Payload/Range: Range at Point B',
-        'Payload/Range: Range at Point C',
-        'MTOW',
-        'MZFW',
-        'Cruise Speed',
-        'TSFC (cruise)',
-    ]
-    missing_columns = [col for col in required_columns if col not in df.columns]
-    if missing_columns:
-        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
     if not (0 < beta < 1):
         raise ValueError("beta must be between 0 and 1.")
-    g = 9.81 * ureg('m/s**2')
+    
+    _validate_dataframe_columns_with_units(
+        df,
+        {
+            'Payload/Range: Range at Point B': '[length]',
+            'Payload/Range: Range at Point C': '[length]',
+            'Payload/Range: MZFW at point B': '[mass]',
+            'Payload/Range: MZFW at point C': '[mass]',
+            'MTOW': '[mass]',
+            'Cruise Speed': '[length]/[time]',
+            'TSFC (cruise)': '[time]/[length]',
+        }
+    )
+    
     df_func = df.copy()
-    K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log((df_func['MTOW'] / df_func['MZFW']) * (1 - beta))
-    K_C: pd.Series = df_func['Payload/Range: Range at Point C'] / np.log((df_func['MTOW'] / df_func['MZFW']) * (1 - beta))
+
+    K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log((df_func['MTOW'] / df_func['Payload/Range: MZFW at point B']) * (1 - beta))
+    K_C: pd.Series = df_func['Payload/Range: Range at Point C'] / np.log((df_func['MTOW'] / df_func['Payload/Range: MZFW at point C']) * (1 - beta))
     K_average = (K_B + K_C) / 2
-    df_func['L/D'] = K_average * g * df_func['TSFC (cruise)'] / df_func['Cruise Speed']
+    df_func['L/D'] = K_average * g_acceleration * df_func['TSFC (cruise)'] / df_func['Cruise Speed']
     df_func['L/D'] = df_func['L/D'].pint.to_base_units()
+    
     if not df_func['L/D'].pint.units.dimensionless:
         raise ValueError("Calculated L/D is not dimensionless, please check the input units.")
+    
     return df_func
 
 

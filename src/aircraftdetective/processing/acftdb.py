@@ -252,8 +252,8 @@ def _read_engine_database(
 
 def _read_aircraft_database(
     path_json_aircraft_database: str = PATH_ZENODO_AIRCRAFT_DATABASE_AIRCRAFT_TYPES_FILE,
-    dict_properties: dict = _read_properties_database(),
-    dict_manufacturers: dict = _read_manufacturers_database(),
+    dict_properties: dict | None = None,
+    dict_manufacturers: dict | None = None,
 ) -> pd.DataFrame:
     r"""
     Reads a JSON backup of the the entire [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
@@ -314,6 +314,11 @@ def _read_aircraft_database(
     pd.DataFrame
         [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with the aircraft models and their properties.
     """
+    if dict_manufacturers is None:
+        dict_manufacturers = _read_manufacturers_database()
+    
+    if dict_properties is None:
+        dict_properties = _read_properties_database()
 
     df = pd.read_json(path_json_aircraft_database)
     df = df.loc[df['aircraftFamily'].isin(['airplane'])] # remove helicopters, amphibious, etc.

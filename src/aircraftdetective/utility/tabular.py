@@ -4,6 +4,71 @@ import pint
 ureg = pint.get_application_registry()
 from pathlib import Path
 import pandas as pd
+from pint import DimensionalityError
+from pint_pandas.pint_array import is_pint_type
+
+
+def _validate_dataframe_columns_with_units(
+        df: pd.DataFrame,
+        required_schema: dict[str, str]
+) -> None:
+    r"""
+    Validates the presence and dimensions of [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) 
+    DataFrame columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The pint-pandas DataFrame to validate.
+    required_schema : dict[str, str]
+        A dictionary where keys are the required column names (str) and
+        values are their expected dimension strings. Of the form  
+         
+        ```
+        {
+            "foo": "[length]",
+            "bar": "[mass]/[time]",
+            ...
+        }
+        ```
+
+    Notes
+    -----
+    Valid `pint` dimension strings can be listed using this syntax:
+
+    ```pyodide install='aircraftdetective'
+    import pint
+    ureg = pint.UnitRegistry()
+    sorted(list(ureg._dimensions.keys()))
+    ```
+
+    See Also
+    --------
+    [`pint` Documentation: Checking Dimensionality](https://pint.readthedocs.io/en/stable/advanced/wrapping.html#checking-dimensionality)
+
+    Returns
+    -------
+    None
+        This function does not return anything if validation is successful.
+
+    Raises
+    ------
+    ValueError
+        If columns are missing or if any column has incorrect dimensions.
+    """
+    missing_columns = [col for col in required_schema if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
+
+    for col, dim_str in required_schema.items():
+        if not is_pint_type(df[col]):
+             raise TypeError(f"Column '{col}' is not a pint-dtype Series and cannot be validated.")
+        
+        if df[col].pint.check(dim_str) is False:
+            raise ValueError(
+                f"Column '{col}' has incorrect units. "
+                f"Expected dimensionality of '{dim_str}', but got '{pint.Unit(df[col].pint.dimensionality)}'."
+            )
 
 
 def rename_columns_and_set_units(
@@ -11,7 +76,7 @@ def rename_columns_and_set_units(
     return_only_renamed_columns: bool,
     column_names_and_units: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
-    """
+    r"""
     Given a DataFrame and a list of tuples describing the column names and units, renames the columns and set the units.
 
     ```
@@ -245,8 +310,6 @@ def update_column_data(
 
     return df_main_updated
 
-
-import pandas as pd
 
 def left_merge_wildcard(
     df_left: pd.DataFrame,
