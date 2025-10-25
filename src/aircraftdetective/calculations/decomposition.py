@@ -219,9 +219,18 @@ def _compute_lmdi_factor_contributions(
     delta_factor_2 = _compute_lmdi_factor_contributions(aggregate_t1, aggregate_t2, factor_2_t1, factor_2_t2)
     ```
     """
-    delta_aggregate = aggregate_t2 - aggregate_t1
-    if delta_aggregate == 0:
-        return 0.0
-    log_mean_aggregate = delta_aggregate / (math.log(aggregate_t2) - math.log(aggregate_t1))
+    if aggregate_t1 <= 0 or aggregate_t2 <= 0 or factor_t1 <= 0 or factor_t2 <= 0:
+        raise ValueError("LMDI inputs (aggregates and factors) must be positive.")
+        
+    if factor_t1 == factor_t2:
+        return 0.0  # No change in factor, so contribution is zero
+
+    if aggregate_t1 == aggregate_t2:
+        log_mean_aggregate = aggregate_t1
+    else:
+        delta_aggregate = aggregate_t2 - aggregate_t1
+        log_mean_aggregate = delta_aggregate / (math.log(aggregate_t2) - math.log(aggregate_t1))
+
     delta_factor = log_mean_aggregate * math.log(factor_t2 / factor_t1)
+    
     return delta_factor
