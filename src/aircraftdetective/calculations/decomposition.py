@@ -129,9 +129,6 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
         if col not in ['YOI', 'Type'] and not pd.api.types.is_numeric_dtype(df[col]):
             raise ValueError(f"Column '{col}' must be of a numeric type.")
 
-
-        
-    
     df_func = df.copy()
     df_func.sort_values(by='YOI', ascending=True, inplace=True)
     grouped = df_func.groupby('Type', group_keys=False)
@@ -149,10 +146,8 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
         'L/D': False                   # higher is better
     }
 
-    
     baselines = {}
     for metric in metrics:
-        # First non-NaN in time order within each Type
         baselines[metric] = grouped[metric].transform(
             lambda g: g.dropna().iloc[0] if g.notna().any() else np.nan
         )
@@ -183,7 +178,6 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
                 df_func[pct_col] = np.where(x0 != 0, (s / x0 - 1.0) * 100.0, np.nan)
 
     return df_func
-
 
 
 def _compute_lmdi_factor_contributions(
