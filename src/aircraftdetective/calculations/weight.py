@@ -10,7 +10,7 @@ def calculate_weight_metrics(
     r"""
     Calculates weight-related metrics for aircraft data.
 
-    Calculates the $OEW/MTOW$ and $OEW/\text{Exit Limit}$ ratios for each aircraft in the provided DataFrame, 
+    Calculates the OEW/MTOW and OEW/Exit Limit ratios for each aircraft in the provided DataFrame, 
     where
 
     | Variable     | Description                          |
@@ -38,8 +38,9 @@ def calculate_weight_metrics(
     Returns
     -------
     pd.DataFrame
-        DataFrame with additional weight metrics:  
-        - `OEW/MTOW`  
+        DataFrame with additional weight metrics:
+
+        - `OEW/MTOW`
         - `OEW/Exit Limit`
         - `norm(OEW/Exit Limit)`
 

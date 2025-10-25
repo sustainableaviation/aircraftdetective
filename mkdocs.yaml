@@ -5,13 +5,11 @@ copyright: © Paul Scherrer Institute (PSI) | Code under MIT License
 nav:
   - Home: 'index.md'
   - About: 'about.md'
-  - Tutorials:
-    #- Overall Efficiency: 'tutorials/overall.ipynb'
-    #- Engine Efficiency: 'tutorials/engines.ipynb'
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
+    - Decomposition: 'theory/decomposition.md'
   - API (Calculations):
-    - Engines: 'api/engines.md'
+    - Engines: 'api/calculations/engines.md'
     - Aerodynamics: 'api/calculations/aerodynamics.md'
     - Weight: 'api/calculations/weight.md'
     - Operations: 'api/calculations/operations.md'
