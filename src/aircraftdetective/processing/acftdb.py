@@ -127,8 +127,8 @@ def _read_manufacturers_database(
 
 def _read_engine_database(
     path_json_engine_database: str = PATH_ZENODO_AIRCRAFT_DATABASE_ENGINE_MODELS_FILE,
-    dict_properties: dict = _read_properties_database(),
-    dict_manufacturers: dict = _read_manufacturers_database(),
+    dict_properties: dict | None = None,
+    dict_manufacturers: dict | None = None,
 ) -> pd.DataFrame:
     """
     Given the path to a JSON file containing the backup of the [aircraft-database.com](https://web.archive.org/web/20231201220700/https://aircraft-database.com/)
@@ -193,18 +193,23 @@ def _read_engine_database(
 
     Parameters
     ----------
-    path_json_engine_models : str
+    path_json_engine_database : str
         Path to the JSON file containing the engine models and their properties.
-    dict_properties : dict
-        Dictionary mapping the property IDs to their names.
-    dict_manufacturers : dict
-        Dictionary mapping the manufacturer IDs to their names.
+    dict_properties : dict, optional
+        Dictionary mapping the property IDs to their names. If None, loaded from default path.
+    dict_manufacturers : dict, optional
+        Dictionary mapping the manufacturer IDs to their names. If None, loaded from default path.
 
     Returns
     -------
     pd.DataFrame
         [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with the engine models and their properties.  
     """
+    if dict_properties is None:
+        dict_properties = _read_properties_database()
+    
+    if dict_manufacturers is None:
+        dict_manufacturers = _read_manufacturers_database()
 
     df = pd.read_json(path_json_engine_database)
     df = df.loc[df['engineFamily'].isin(['turbofan', 'turbojet', 'turboprop'])]
@@ -306,8 +311,12 @@ def _read_aircraft_database(
 
     Parameters
     ----------
-    path_json_aircraft_models : str
+    path_json_aircraft_database : str
         Path to the JSON file containing the aircraft models and their properties.
+    dict_properties : dict, optional
+        Dictionary mapping the property IDs to their names. If None, loaded from default path.
+    dict_manufacturers : dict, optional
+        Dictionary mapping the manufacturer IDs to their names. If None, loaded from default path.
 
     Returns
     -------
