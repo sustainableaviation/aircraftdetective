@@ -7,11 +7,15 @@ nav:
   - About: 'about.md'
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
+    - Decomposition: 'theory/decomposition.md'
+  - Tutorials:
+    - Weight: 'tutorials/weight.ipynb'
   - API (Calculations):
-    - Engines: 'api/engines.md'
-    - Aerodynamics: 'api/aerodynamics.md'
-    - Operations: 'api/operations.md'
-    - Decomposition: 'api/decomposition.md'
+    - Engines: 'api/calculations/engines.md'
+    - Aerodynamics: 'api/calculations/aerodynamics.md'
+    - Weight: 'api/calculations/weight.md'
+    - Operations: 'api/calculations/operations.md'
+    - Decomposition: 'api/calculations/decomposition.md'
   - API (Data Processing):
     - USDOT Schedule T-2 Data: 'api/processing/usdot.md'
     - aircraft-database.com: 'api/processing/acftdb.md'
@@ -24,7 +28,7 @@ nav:
   - Changelog: 'changelog.md'
 theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
   name: material
-  #custom_dir: docs/_overrides
+  custom_dir: docs/_overrides
   logo: _static/logos/aircraftdetective_logo.svg
   favicon: _static/logos/aircraftdetective_logo.svg
   highlightjs: true
@@ -59,9 +63,13 @@ plugins:
             heading_level: 2
             show_source: true
             filters: []
+            separate_signature: true
   - markdown-exec
   - autorefs
   - include-markdown
+  - mkdocs-jupyter:
+      execute: false
+      include_source: True
 markdown_extensions:
   - admonition
   - pymdownx.superfences

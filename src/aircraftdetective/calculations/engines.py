@@ -16,6 +16,10 @@ from aircraftdetective.data.hyperlinks import (
     PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE,
     PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE,
 )
+from aircraftdetective.data.constants import (
+    jeta1_specificenergy,
+    jeta1_density,
+)
 
 
 def determine_takeoff_to_cruise_tsfc_ratio(
@@ -192,7 +196,7 @@ def scale_engine_data_from_icao_emissions_database(
     )
     df_engines['Final Test Date'] = df_engines['Final Test Date'].dt.year.astype('Int64')
 
-    df_engines = tabular.rename_columns_and_set_units(
+    df_engines = tabular._rename_columns_and_set_units(
         df=df_engines,
         return_only_renamed_columns=True,
         column_names_and_units=[
@@ -394,10 +398,6 @@ def calculate_engine_efficiencies(
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
-    
-    jeta1_energydensity = 34.7*1E6 * ureg.J / ureg.l # https://en.wikipedia.org/wiki/Jet_fuel
-    jeta1_density = 0.804 * ureg.kg / ureg.l # https://en.wikipedia.org/wiki/Jet_fuel
-    jeta1_specificenergy = jeta1_energydensity / jeta1_density
 
     df['Engine Efficiency'] = df['Cruise Speed'] / (jeta1_specificenergy * df['TSFC (cruise)'])
 

@@ -4,14 +4,79 @@ import pint
 ureg = pint.get_application_registry()
 from pathlib import Path
 import pandas as pd
+from pint import DimensionalityError
+from pint_pandas.pint_array import is_pint_type
 
 
-def rename_columns_and_set_units(
+def _validate_dataframe_columns_with_units(
+        df: pd.DataFrame,
+        required_schema: dict[str, str]
+) -> None:
+    r"""
+    Validates the presence and dimensions of [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) 
+    DataFrame columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The pint-pandas DataFrame to validate.
+    required_schema : dict[str, str]
+        A dictionary where keys are the required column names (str) and
+        values are their expected dimension strings. Of the form  
+         
+        ```
+        {
+            "foo": "[length]",
+            "bar": "[mass]/[time]",
+            ...
+        }
+        ```
+
+    Notes
+    -----
+    Valid `pint` dimension strings can be listed using this syntax:
+
+    ```pyodide install='aircraftdetective'
+    import pint
+    ureg = pint.UnitRegistry()
+    sorted(list(ureg._dimensions.keys()))
+    ```
+
+    See Also
+    --------
+    [`pint` Documentation: Checking Dimensionality](https://pint.readthedocs.io/en/stable/advanced/wrapping.html#checking-dimensionality)
+
+    Returns
+    -------
+    None
+        This function does not return anything if validation is successful.
+
+    Raises
+    ------
+    ValueError
+        If columns are missing or if any column has incorrect dimensions.
+    """
+    missing_columns = [col for col in required_schema if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame is missing required columns: {missing_columns}")
+
+    for col, dim_str in required_schema.items():
+        if not is_pint_type(df[col]):
+             raise TypeError(f"Column '{col}' is not a pint-dtype Series and cannot be validated.")
+        
+        if df[col].pint.check(dim_str) is False:
+            raise ValueError(
+                f"Column '{col}' has incorrect units. "
+                f"Expected dimensionality of '{dim_str}', but got '{pint.Unit(df[col].pint.dimensionality)}'."
+            )
+
+
+def _rename_columns_and_set_units(
     df: pd.DataFrame,
     return_only_renamed_columns: bool,
     column_names_and_units: list[tuple[str, str, str]],
 ) -> pd.DataFrame:
-    """
+    r"""
     Given a DataFrame and a list of tuples describing the column names and units, renames the columns and set the units.
 
     ```
@@ -164,17 +229,18 @@ def update_column_data(
     merge_column: str,
     list_columns: list[str],
 ) -> pd.DataFrame:
-    """_summary_
-
-    _extended_summary_
+    r"""
+    Given two DataFrames, updates the values in the first DataFrame 
+    with the values from the second DataFrame for the specified columns, 
+    based on a common merge column.
 
     Given a first DataFrame of the kind:
 
     | Aircraft Designation | (...) | TSFC (cruise) |
     |----------------------|-------|---------------|
-    | B707-120             | (...) |               |
+    | B707-120             | (...) | NaN           |
     | B737-200C            | (...) | 0.5           |
-    | A380-800             | (...) |               |
+    | A380-800             | (...) | NaN           |
 
     and a second DataFrame of the kind:
 
@@ -183,43 +249,50 @@ def update_column_data(
     | B707-120             | (...) | 0.6           |
     | A380-800             | (...) | 0.7           |
 
-    and a list of columns to update:
-
-    list_columns = ['TSFC (cruise)']
-
-    and a merge column:
-
-    merge_column = 'Aircraft Designation'
-
+    for the merge column `Aircraft Designation`, 
+    and the list of columns to update `['TSFC (cruise)']`,
     the function will update the first DataFrame with the values from the second DataFrame:
 
     | Aircraft Designation | (...) | TSFC (cruise) |
     |----------------------|-------|---------------|
-    | B707-120             | (...) | 0.6           |
+    | B707-120             | (...) | **0.6**       |
     | B737-200C            | (...) | 0.5           |
-    | A380-800             | (...) | 0.7           |
-
+    | A380-800             | (...) | **0.7**       |
 
     Parameters
     ----------
     df_main : pd.DataFrame
-        _description_
+        Main DataFrame to be updated.
     df_other : pd.DataFrame
-        _description_
+        Other DataFrame to update from.
     merge_column : str
-        _description_
+        Column name to merge on.
     list_columns : list[str]
-        _description_
-
-    See Also
-    --------
-    - [GitHub Issues/PR at `pint-pandas`](https://github.com/hgrecco/pint-pandas/pull/247)
+        List of column names to update. These columns must exist in both DataFrames.
 
     Returns
     -------
     pd.DataFrame
-        _description_
+        Updated DataFrame.
+
+    Raises
+    ------
+    KeyError
+        If the `merge_column` or any of the `list_columns` do not exist in either DataFrame.
     """
+    df_main = df_main.copy()
+    df_other = df_other.copy()
+
+    if merge_column not in df_main.columns:
+        raise KeyError(f"'{merge_column}' not in main DataFrame columns")
+    if merge_column not in df_other.columns:
+        raise KeyError(f"'{merge_column}' not in other DataFrame columns")
+    for col in list_columns:
+        if col not in df_main.columns:
+            raise KeyError(f"'{col}' not in main DataFrame columns")
+        if col not in df_other.columns:
+            raise KeyError(f"'{col}' not in other DataFrame columns")
+
     df_main_updated = pd.merge(
         left=df_main,
         right=df_other[list_columns + [merge_column]],
@@ -303,37 +376,60 @@ def left_merge_wildcard(
     df_l = df_left.copy()
     df_r = df_right.copy()
 
-    left_keys: list = df_l[left_on].drop_duplicates().tolist()
-    right_keys: list = df_r[right_on].drop_duplicates().tolist()
+    left_keys = df_l[left_on].drop_duplicates().tolist()
+    right_keys = df_r[right_on].drop_duplicates().tolist()
 
-    dict_matching = {}
-    for key in left_keys:
-        if isinstance(key, str) and '*' in key: # eg. 'CFM56-5*'
-            pattern = key.split('*')[0] # eg. 'CFM56-5'
-            matching_rights = [ # eg. ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']
-                rk for rk
-                in right_keys
-                if isinstance(rk, str)
-                and rk.startswith(pattern)
-            ]
-            dict_matching[key] = matching_rights # eg. {'CFM56-5*': ['CFM56-5A1', 'CFM56-5A2', 'CFM56-5A3']}
-        else:
-            dict_matching[key] = [key] # eg. {'V2500-A1': ['V2500-A1']}
+    # Pre-process left keys for efficient lookup
+    wildcard_patterns = {
+        key: key.split('*')[0]
+        for key in left_keys
+        if isinstance(key, str) and '*' in key
+    }
+    # Use a set for fast O(1) lookups of exact keys
+    exact_keys = {key for key in left_keys if key not in wildcard_patterns}
 
-    for key in dict_matching.keys():
-        df_r.loc[
-            df_r[right_on].isin(dict_matching[key]),
-            'key_wildcard'
-        ] = key
+    # Build a definitive map from each right_key to its single BEST left_key match
+    key_map = {}
+    for rk in right_keys:
+        # Priority 1: An exact match is always the best match.
+        if rk in exact_keys:
+            key_map[rk] = rk
+            continue
 
+        # Priority 2: If no exact match, find the best wildcard match.
+        # This only applies if the right key is a string.
+        if not isinstance(rk, str):
+            continue
+
+        matching_wildcards = [
+            lk for lk, pattern in wildcard_patterns.items() if rk.startswith(pattern)
+        ]
+
+        # If any wildcard matches were found, the best is the most specific (longest).
+        if matching_wildcards:
+            best_match = max(matching_wildcards, key=len)
+            key_map[rk] = best_match
+
+    # Use the unambiguous map to create the new join key in the right DataFrame.
+    # Keys in df_r that have no match in the map will be assigned NaN.
+    df_r['key_wildcard'] = df_r[right_on].map(key_map)
+
+    # The groupby will automatically drop rows where 'key_wildcard' is NaN,
+    # satisfying the "silent discarding is ok" requirement.
     numeric_cols = df_r.select_dtypes(include='number').columns
     object_cols = df_r.select_dtypes(exclude='number').columns.drop([right_on, 'key_wildcard'], errors='ignore')
 
     agg_rules = {col: 'mean' for col in numeric_cols}
     agg_rules.update({col: 'first' for col in object_cols})
 
-    if not agg_rules:
-        df_r_agg = pd.DataFrame({'key_wildcard': list(dict_matching.keys())}).set_index('key_wildcard')
+    if 'key_wildcard' not in df_r or df_r['key_wildcard'].isnull().all():
+        # Handle case where no matches were found at all
+        df_r_agg = pd.DataFrame(columns=df_r.columns.drop(right_on)).set_index('key_wildcard' if 'key_wildcard' in df_r.columns else [])
+    elif not agg_rules:
+        # Handle case where there are no columns to aggregate
+        unique_matched_keys = df_r['key_wildcard'].dropna().unique()
+        df_r_agg = pd.DataFrame(index=unique_matched_keys)
+        df_r_agg.index.name = 'key_wildcard'
     else:
         df_r_agg = df_r.groupby('key_wildcard').agg(agg_rules)
 
@@ -342,5 +438,5 @@ def left_merge_wildcard(
         right=df_r_agg,
         how='left',
         left_on=left_on,
-        right_on='key_wildcard',
+        right_index=True,
     )

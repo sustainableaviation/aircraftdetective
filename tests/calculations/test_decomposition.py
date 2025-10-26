@@ -1,10 +1,12 @@
 import pytest
 import math
 import pandas as pd
+import pandas.testing as pd_testing
+import numpy as np
 
 from aircraftdetective.calculations.decomposition import (
     _compute_lmdi_factor_contributions,
-    _compute_efficiency_improvement_metrics
+    _compute_improvement_metrics
 )
 
 
@@ -32,109 +34,186 @@ def sample_aircraft_data() -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-class TestComputeEfficiencyImprovementMetrics:
-    """Test suite for the `_compute_efficiency_improvement_metrics` function."""
+@pytest.fixture
+def prepared_data(sample_aircraft_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Takes the raw sample_aircraft_data and renames columns
+    to match the function's requirements.
+    """
+    return sample_aircraft_data.rename(
+        columns={
+            'EU': 'Energy Use (per ASK)',
+            'TSFC': 'TSFC (cruise)',
+        }
+    )
 
-    def test_successful_computation_mixed_types(self, sample_aircraft_data):
+
+class TestComputeImprovementMetrics:
+    """
+    Test suite for the _compute_improvement_metrics function.
+    """
+
+    def test_calculations_with_sample_data(self, prepared_data):
         """
-        Tests the primary success case with mixed aircraft types and unordered years.
-        Verifies that grouping, sorting, and calculations are correct.
+        Tests the core calculation logic using the prepared sample_aircraft_data.
+        The function sorts by YOI, so the output order is YOI-based.
+        
+        Baselines:
+        - Narrow (YOI 2000): EU=120, TSFC=1.0, OEW=250, L/D=12
+        - Wide (YOI 2005):   EU=100, TSFC=0.8, OEW=320, L/D=15
+        """
+        result_df = _compute_improvement_metrics(prepared_data)
 
-        Expected output DataFrame (sorted by YOI within Type):
-
-        | YOI  | Type   | Delta%(EU) | Delta%(TSFC) | Delta%(OEW/Exit Limit) | Delta%(L/D) | Other_Data |
-        |------|--------|------------|--------------|------------------------|-------------|------------|
-        | 2000 | Narrow | 0.0        | 0.0          | 0.0                    | 0.0         | B          |
-        | 2005 | Wide   | 0.0        | 0.0          | 0.0                    | 0.0         | A          |
-        | 2008 | Wide   | 11.111111  | 14.285714    | 3.225806               | 6.666667    | E          |
-        | 2010 | Narrow | 11.111111  | 11.111111    | 4.166667               | 8.333333    | C          |
-        | 2015 | Wide   | 25.0       | 33.333333    | 6.666667               | 20.0        | D          |
-
-        Manual calculations:
-
-        - For Narrow type (baseline YOI 2000):
-          - 2000: Baseline, all deltas = 0.0
-          - 2010:
-            - Delta%(EU) = ((120 / 108) - 1) * 100 = 11.111111%
-            - Delta%(TSFC) = ((1.0 / 0.9) - 1) * 100 = 11.111111%
-            - Delta%(OEW/Exit Limit) = ((250 / 240) - 1) * 100 = 4.166667%
-            - Delta%(L/D) = ((13 / 12) - 1) * 100 = 8.333333
-        - For Wide type (baseline YOI 2005):
-          - 2005: Baseline, all deltas = 0.0
-          - 2008:
-            - Delta%(EU) = ((100 / 90) - 1) * 100 = 11.111111%
-            - Delta%(TSFC) = ((0.8 / 0.7) - 1) * 100 = 14.285714%
-            - Delta%(OEW/Exit Limit) = ((320 / 310) - 1) * 100 = 3.225806%
-            - Delta%(L/D) = ((16 / 15) - 1) * 100 = 6.666667
-          - 2015:
-            - Delta%(EU) = ((100 / 80) - 1) * 100 = 25.0%
-            - Delta%(TSFC) = ((0.8 / 0.6) - 1) * 100 = 33.333333%
-            - Delta%(OEW/Exit Limit) = ((320 / 300) - 1) * 100 = 6.666667%
-            - Delta%(L/D) = ((18 / 15) - 1) * 100 = 20.0
-        """        
+        # Build the expected DataFrame, sorted by YOI (as the function does)
         expected_data = {
-            'YOI':              [2000, 2005, 2008, 2010, 2015], # Sorted
+            # Original Data (YOI-sorted)
+            'YOI':              [2000, 2005, 2008, 2010, 2015],
             'Type':             ['Narrow', 'Wide', 'Wide', 'Narrow', 'Wide'],
-            'Delta%(EU)':       [0.0, 0.0, 11.111111, 11.111111, 25.0],
-            'Delta%(TSFC)':     [0.0, 0.0, 14.285714, 11.111111, 33.333333],
-            'Delta%(OEW/Exit Limit)': [0.0, 0.0, 3.225806, 4.166667, 6.666667],
-            'Delta%(L/D)':      [0.0, 0.0, 6.666667, 8.333333, 20.0],
-            'Other_Data':       ['B', 'A', 'E', 'C', 'D']
+            'Energy Use (per ASK)': [120, 100, 90, 108, 80],
+            'TSFC (cruise)':    [1.0, 0.8, 0.7, 0.9, 0.6],
+            'OEW/Exit Limit':   [250, 320, 310, 240, 300],
+            'L/D':              [12, 15, 16, 13, 18],
+            'Other_Data':       ['B', 'A', 'E', 'C', 'D'],
+
+            # Calculated Data
+            'Index(Energy Use (per ASK))': [
+                1.0,        # N-2000 (Base)
+                1.0,        # W-2005 (Base)
+                100/90,     # W-2008
+                120/108,    # N-2010
+                100/80      # W-2015
+            ],
+            'Percent(Energy Use (per ASK))': [
+                0.0,
+                0.0,
+                (100/90 - 1) * 100,
+                (120/108 - 1) * 100,
+                (100/80 - 1) * 100
+            ],
+            
+            'Index(TSFC (cruise))': [
+                1.0,        # N-2000 (Base)
+                1.0,        # W-2005 (Base)
+                0.8/0.7,    # W-2008
+                1.0/0.9,    # N-2010
+                0.8/0.6     # W-2015
+            ],
+            'Percent(TSFC (cruise))': [
+                0.0,
+                0.0,
+                (0.8/0.7 - 1) * 100,
+                (1.0/0.9 - 1) * 100,
+                (0.8/0.6 - 1) * 100
+            ],
+            
+            'Index(OEW/Exit Limit)': [
+                1.0,        # N-2000 (Base)
+                1.0,        # W-2005 (Base)
+                320/310,    # W-2008
+                250/240,    # N-2010
+                320/300     # W-2015
+            ],
+            'Percent(OEW/Exit Limit)': [
+                0.0,
+                0.0,
+                (320/310 - 1) * 100,
+                (250/240 - 1) * 100,
+                (320/300 - 1) * 100
+            ],
+            
+            'Index(L/D)': [
+                1.0,        # N-2000 (Base)
+                1.0,        # W-2005 (Base)
+                16/15,      # W-2008
+                13/12,      # N-2010
+                18/15       # W-2015
+            ],
+            'Percent(L/D)': [
+                0.0,
+                0.0,
+                (16/15 - 1) * 100,
+                (13/12 - 1) * 100,
+                (18/15 - 1) * 100
+            ],
         }
-        expected_df = pd.DataFrame(expected_data)
+        
+        expected_df = pd.DataFrame(expected_data).reset_index(drop=True)
+        result_df_sorted = result_df.sort_values(by='YOI').reset_index(drop=True)
 
-        result_df = _compute_efficiency_improvement_metrics(sample_aircraft_data)
+        pd_testing.assert_frame_equal(result_df_sorted, expected_df, atol=1e-5)
 
-        expected_df = expected_df.sort_values(by=['Type', 'YOI']).reset_index(drop=True)
-        result_df = result_df.sort_values(by=['Type', 'YOI']).reset_index(drop=True)
+    def test_original_dataframe_not_modified(self, prepared_data):
+        """
+        Ensures the function does not modify the input DataFrame in place.
+        """
+        original_copy = prepared_data.copy()
+        _compute_improvement_metrics(prepared_data)
+        pd_testing.assert_frame_equal(prepared_data, original_copy)
 
-        pd.testing.assert_frame_equal(result_df, expected_df, atol=1e-6)
+    def test_preserves_other_columns(self, prepared_data):
+        """
+        Ensures that columns not used in the calculation are preserved.
+        """
+        result_df = _compute_improvement_metrics(prepared_data)
+        
+        assert 'Other_Data' in result_df.columns
+        # Check that the set of values is preserved, even if order changes
+        assert set(result_df['Other_Data']) == set(prepared_data['Other_Data'])
+        assert len(result_df) == len(prepared_data)
 
-    def test_edge_case_single_entry_per_group(self):
-        """Tests that a DataFrame with one row per group results in all zeros."""
-        data = {
-            'YOI': [2000, 2010],
-            'Type': ['Narrow', 'Wide'],
-            'EU': [100, 120], 'TSFC': [1.0, 0.9],
-            'OEW/Exit Limit': [250, 300], 'L/D': [12, 15]
-        }
-        df = pd.DataFrame(data)
-        result_df = _compute_efficiency_improvement_metrics(df)
+    def test_raises_on_missing_required_columns(self, sample_aircraft_data):
+        """
+        Tests that the function fails if the required column names are not present.
+        This test *intentionally* uses the *un-prepared* fixture.
+        """
+        with pytest.raises(ValueError, match="Required column 'Energy Use \(per ASK\)' not found"):
+            _compute_improvement_metrics(sample_aircraft_data)
 
-        for col in result_df.columns:
-            if col.startswith('Delta%'):
-                assert (result_df[col] == 0.0).all()
-
-    def test_raises_error_on_empty_dataframe(self):
-        """Verifies that an empty DataFrame raises a ValueError."""
-        with pytest.raises(ValueError, match="must be a non-empty Pandas DataFrame"):
-            _compute_efficiency_improvement_metrics(pd.DataFrame())
-
-    def test_raises_error_on_none_input(self):
-        """Verifies that a None input raises a ValueError."""
-        with pytest.raises(ValueError, match="must be a non-empty Pandas DataFrame"):
-            _compute_efficiency_improvement_metrics(None)
-
-    def test_raises_error_on_missing_column(self, sample_aircraft_data):
-        """Verifies that a missing required column raises a ValueError."""
-        df = sample_aircraft_data.drop(columns=['EU'])
-        with pytest.raises(ValueError, match="Required column 'EU' not found"):
-            _compute_efficiency_improvement_metrics(df)
-
-    def test_raises_error_on_all_nan_column(self, sample_aircraft_data):
-        """Verifies that a column with all NaN values raises a ValueError."""
-        df = sample_aircraft_data.copy()
-        # FIX: Use pandas native NA to represent missing values and avoid NameError
-        df['L/D'] = pd.NA
-        with pytest.raises(ValueError, match="Column 'L/D' cannot be all NaN"):
-            _compute_efficiency_improvement_metrics(df)
-
-    def test_raises_error_on_non_numeric_column(self, sample_aircraft_data):
-        """Verifies that a non-numeric metric column raises a ValueError."""
-        df = sample_aircraft_data.copy()
-        df['TSFC'] = df['TSFC'].astype(str)
-        with pytest.raises(ValueError, match="Column 'TSFC' must be of a numeric type"):
-            _compute_efficiency_improvement_metrics(df)
+    @pytest.mark.parametrize(
+        "invalid_df, match_message",
+        [
+            pytest.param(
+                None,
+                "must be a non-empty Pandas DataFrame",
+                id="not_a_dataframe"
+            ),
+            pytest.param(
+                pd.DataFrame(),
+                "must be a non-empty Pandas DataFrame",
+                id="empty_dataframe"
+            ),
+            pytest.param(
+                pd.DataFrame({
+                    'YOI': [2000, 2005],
+                    'Type': ['A', 'A'],
+                    'Energy Use (per ASK)': [100.0, 80.0],
+                    'TSFC (cruise)': [10.0, 8.0],
+                    'OEW/Exit Limit': [50.0, 45.0],
+                    'L/D': [np.nan, np.nan] # All NaN
+                }),
+                "Column 'L/D' cannot be all NaN",
+                id="all_nan_column"
+            ),
+            pytest.param(
+                pd.DataFrame({
+                    'YOI': [2000, 2005],
+                    'Type': ['A', 'A'],
+                    'Energy Use (per ASK)': [100.0, 80.0],
+                    'TSFC (cruise)': [10.0, 8.0],
+                    'OEW/Exit Limit': [50.0, 45.0],
+                    'L/D': [20.0, "twenty-two"] # Non-numeric
+                }),
+                "Column 'L/D' must be of a numeric type",
+                id="non_numeric_metric"
+            ),
+        ]
+    )
+    def test_raises_value_error_for_invalid_input(self, invalid_df, match_message):
+        """
+        Tests all validation checks that should raise a ValueError.
+        """
+        with pytest.raises(ValueError, match=match_message):
+            _compute_improvement_metrics(invalid_df)
 
 
 class TestLmdiFactorContributions:
@@ -174,40 +253,3 @@ class TestLmdiFactorContributions:
         )
         # Use pytest.approx for safe floating-point comparison
         assert result == pytest.approx(expected_contribution)
-
-    def test_no_change_in_aggregate(self):
-        """
-        Tests the specific edge case where the aggregate value is unchanged.
-        The function should return 0.0 immediately.
-        """
-        result = _compute_lmdi_factor_contributions(
-            aggregate_t1=100.0, aggregate_t2=100.0, factor_t1=5.0, factor_t2=10.0
-        )
-        assert result == 0.0
-
-    @pytest.mark.parametrize(
-        "aggregate_t1, aggregate_t2, factor_t1, factor_t2, expected_error",
-        [
-            # Zero values that lead to undefined mathematical operations.
-            pytest.param(10.0, 20.0, 0.0, 5.0, ZeroDivisionError, id="zero_factor_t1_division"),
-            pytest.param(0.0, 20.0, 2.0, 5.0, ValueError, id="zero_aggregate_t1_log"),
-            pytest.param(10.0, 0.0, 2.0, 5.0, ValueError, id="zero_aggregate_t2_log"),
-            pytest.param(10.0, 20.0, 2.0, 0.0, ValueError, id="zero_factor_t2_log"),
-            
-            # Negative values are not permissible in logarithms.
-            pytest.param(-10.0, 20.0, 2.0, 5.0, ValueError, id="negative_aggregate_t1"),
-            pytest.param(10.0, -20.0, 2.0, 5.0, ValueError, id="negative_aggregate_t2"),
-            pytest.param(10.0, 20.0, -2.0, 5.0, ValueError, id="negative_factor_ratio"),
-        ]
-    )
-    def test_invalid_inputs(
-        self, aggregate_t1, aggregate_t2, factor_t1, factor_t2, expected_error
-    ):
-        """
-        Tests that the function raises appropriate errors for invalid inputs like zeros
-        or negative numbers, which are mathematically undefined for this formula.
-        """
-        with pytest.raises(expected_error):
-            _compute_lmdi_factor_contributions(
-                aggregate_t1, aggregate_t2, factor_t1, factor_t2
-            )

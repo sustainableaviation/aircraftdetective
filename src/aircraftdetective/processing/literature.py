@@ -9,6 +9,7 @@ from aircraftdetective.data.hyperlinks import (
 )
 
 def process_data_weinold_database(
+    sheet_name: str = 'Raw Data',
     path_xlsx_acftdb: str = PATH_ZENODO_AIRCRAFT_DATABASE_FILE,
 ) -> pd.DataFrame:
     r"""
@@ -23,14 +24,24 @@ def process_data_weinold_database(
     --------
     [Weinold (2023) aircraft database in Excel format on Zenodo](https://doi.org/10.5281/zenodo.14382100)   
 
+    Parameters
+    ----------
+    sheet_name : str, optional
+        The sheet name to read from the Excel file. Options are 'Raw Data' or 'Literature Data'. Default is 'Raw Data'.
+    path_xlsx_acftdb : str, optional
+        The path or URL to the Excel file containing the aircraft database. Default is the Zenodo URL.
+
     Returns
     -------
     pd.DataFrame
         [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame containing the Weinold (2023) aircraft database.
     """
+    if sheet_name not in ['Raw Data', 'Literature Data']:
+        raise NotImplementedError("Only 'Raw Data' and 'Literature Data' sheets areavailable.")
+
     df = pd.read_excel(
         io=path_xlsx_acftdb,
-        sheet_name='Raw Data',
+        sheet_name=sheet_name,
         header=[0,1],
         engine='openpyxl'
     )
@@ -57,6 +68,11 @@ def process_data_babikian_figures(
     References
     -----------
     [Babikian et al. (2002)](https://doi.org/10.1016/S0969-6997(02)00020-0)
+
+    Parameters
+    ----------
+    path_xlsx_babikian : str, optional
+        The path or URL to the Excel file containing the Babikian et al. (2002) aircraft efficiency data. Default is the Zenodo URL.
 
     Returns
     -------

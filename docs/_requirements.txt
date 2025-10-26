@@ -1,4 +1,5 @@
 mkdocstrings-python
+ruff
 pymdown-extensions
 mkdocs-jupyter
 markdown-exec
