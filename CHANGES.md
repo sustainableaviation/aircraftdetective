@@ -4,10 +4,12 @@
     The format of this log is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
     This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## `1.0.0` (12. October 2025)
+## `0.0.4` (26. October 2025)
 
-!!! note
-    Initial stable release.
+### Improvements
+
+- Updated the `calculations.allocation` module to correctly implement the LMDI method for decomposition analysis.
+- Added first tutorial for aircraft weight metrics.
 
 ## `0.0.3` (08. August 2025)
 
