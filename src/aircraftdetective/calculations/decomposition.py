@@ -86,17 +86,28 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     ----------
     df : pd.DataFrame
         DataFrame containing the aircraft sub-efficiency data.  
-        Must contain at least the columns: `['YOI', 'Type', 'Energy Use (per ASK)', 'TSFC (cruise)', 'OEW/Exit Limit', 'L/D']`
+        Must contain at least the columns:
+
+        - `YOI`
+        - `Type`
+        - `Energy Use (per ASK)`
+        - `TSFC (cruise)`
+        - `OEW/Exit Limit`
+        - `L/D`
 
     Returns
     -------
     df : pd.DataFrame
-        DataFrame with additional columns for relative improvements in EU, TSFC, OEW/Exit Limit, and L/D.  
-        Of the kind:  
+        DataFrame with additional columns for relative improvements in EU, TSFC, OEW/Exit Limit, and L/D:
         
-        | ... | Percent(Energy use (per ASK)) | Percent(TSFC (cruise)) | Percent(OEW/Exit Limit) | Percent(L/D) | 
-        |-----|-------------------------------|------------------------|-------------------------|--------------|
-        | ... | ...                           | ...                    | ...                     | ...          |
+        - `Index(Energy use (per ASK))`
+        - `Index(TSFC (cruise))`
+        - `Index(OEW/Exit Limit)`
+        - `Index(L/D)`
+        - `Percent(Energy use (per ASK))`
+        - `Percent(TSFC (cruise))`
+        - `Percent(OEW/Exit Limit)`
+        - `Percent(L/D)`        
 
     Raises
     ------
