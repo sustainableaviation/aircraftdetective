@@ -39,8 +39,11 @@ class TestProcessDataUsdotT2:
             'Fuel/Available Seat Distance',
             'Fuel/Revenue Seat Distance',
             'Fuel Flow',
+            'Energy Use (per ASK)',
+            'Energy Intensity (per RPK)',
             'Airborne Efficiency',
             'SLF',
+            'Revenue Passenger Distance',
         ]
         assert processed_df.columns.tolist() == expected_columns, \
             "DataFrame columns are incorrect or not in the expected order."

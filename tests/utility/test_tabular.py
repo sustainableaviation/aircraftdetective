@@ -5,15 +5,91 @@ import pint_pandas
 from pathlib import Path
 from pandas.testing import assert_frame_equal
 from aircraftdetective.utility.tabular import (
-    rename_columns_and_set_units,
+    _rename_columns_and_set_units,
     _return_short_units,
     export_typed_dataframe_to_excel,
-    left_merge_wildcard
+    left_merge_wildcard,
+    update_column_data,
+    _validate_dataframe_columns_with_units,
 )
 
 
+class TestValidateDataFrameColumnsWithUnits:
+    """Test suite for the _validate_dataframe_columns_with_units function."""
+
+    @pytest.fixture
+    def sample_schema(self) -> dict[str, str]:
+        """Provides a sample schema for validation tests."""
+        return {
+            'length_col': '[length]',
+            'mass_col': '[mass]',
+            'velocity_col': '[length]/[time]',
+        }
+
+    @pytest.fixture
+    def valid_df(self) -> pd.DataFrame:
+        """Provides a DataFrame that is valid against the sample_schema."""
+        return pd.DataFrame({
+            'length_col': pd.Series([10], dtype='pint[m]'),
+            'mass_col': pd.Series([5], dtype='pint[kg]'),
+            'velocity_col': pd.Series([20], dtype='pint[m/s]'),
+        })
+
+    def test_success_case(self, valid_df, sample_schema):
+        """Tests that validation passes for a DataFrame that matches the schema."""
+        try:
+            _validate_dataframe_columns_with_units(valid_df, sample_schema)
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"Validation unexpectedly failed with error: {e}")
+
+    def test_missing_column(self, valid_df, sample_schema):
+        """Tests that a ValueError is raised if a required column is missing."""
+        df_missing = valid_df.drop(columns=['mass_col'])
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['mass_col'\\]"):
+            _validate_dataframe_columns_with_units(df_missing, sample_schema)
+
+    def test_wrong_dimension(self, valid_df, sample_schema):
+        """Tests that a ValueError is raised if a column has the wrong dimension."""
+        df_wrong_dim = valid_df.copy()
+        df_wrong_dim['length_col'] = pd.Series([10], dtype='pint[kg]')
+        # Match the full, specific error message to ensure the test is precise.
+        expected_msg = "Column 'length_col' has incorrect units. Expected dimensionality of '\\[length\\]', but got '\\[mass\\]'."
+        with pytest.raises(ValueError, match=expected_msg):
+            _validate_dataframe_columns_with_units(df_wrong_dim, sample_schema)
+
+    def test_not_a_pint_series(self, valid_df, sample_schema):
+        """Tests that a TypeError is raised if a column is not a pint-dtype Series."""
+        df_not_pint = valid_df.copy()
+        df_not_pint['mass_col'] = pd.Series([5], dtype='int64')
+        with pytest.raises(TypeError, match="Column 'mass_col' is not a pint-dtype Series and cannot be validated."):
+            _validate_dataframe_columns_with_units(df_not_pint, sample_schema)
+
+    def test_extra_columns_are_ignored(self, valid_df, sample_schema):
+        """Tests that validation passes even if the DataFrame has extra columns not in the schema."""
+        df_extra = valid_df.copy()
+        df_extra['extra_col'] = pd.Series([100], dtype='pint[s]')
+        try:
+            _validate_dataframe_columns_with_units(df_extra, sample_schema)
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"Validation with extra columns unexpectedly failed: {e}")
+
+    def test_empty_dataframe(self, sample_schema):
+        """Tests that validation fails correctly for an empty DataFrame."""
+        empty_df = pd.DataFrame()
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['length_col', 'mass_col', 'velocity_col'\\]"):
+            _validate_dataframe_columns_with_units(empty_df, sample_schema)
+
+    def test_empty_schema(self, valid_df):
+        """Tests that validation passes for any DataFrame if the schema is empty."""
+        empty_schema = {}
+        try:
+            _validate_dataframe_columns_with_units(valid_df, empty_schema)
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"Validation with an empty schema unexpectedly failed: {e}")
+
+
 class TestRenameColumnsAndSetUnits:
-    """Test suite for the `rename_columns_and_set_units` function."""
+    """Test suite for the `_rename_columns_and_set_units` function."""
 
     @pytest.fixture
     def sample_df(self) -> pd.DataFrame:
@@ -38,7 +114,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -69,7 +145,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=True,
             column_names_and_units=column_map
@@ -99,7 +175,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -124,7 +200,7 @@ class TestRenameColumnsAndSetUnits:
         ]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=sample_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -145,7 +221,7 @@ class TestRenameColumnsAndSetUnits:
         column_map = [("A", "New A", "int")]
 
         # Act
-        result_df = rename_columns_and_set_units(
+        result_df = _rename_columns_and_set_units(
             df=empty_df.copy(),
             return_only_renamed_columns=False,
             column_names_and_units=column_map
@@ -175,7 +251,7 @@ class TestRenameColumnsAndSetUnits:
             # Note: The provided snippet was slightly modified to pass this test
             # by being more robust. To test the original code, the list comprehension
             # should be: `[col[1] for col in column_names_and_units]`
-            rename_columns_and_set_units(
+            _rename_columns_and_set_units(
                 df=sample_df.copy(),
                 return_only_renamed_columns=True,
                 column_names_and_units=column_map
@@ -229,7 +305,7 @@ class TestReturnShortUnits:
 
 
 class TestExportTypedDataFrameToExcel:
-    """Test suite for the  export_typed_dataframe_to_excel` function."""
+    """Test suite for the  `export_typed_dataframe_to_excel` function."""
 
     @pytest.fixture
     def sample_typed_df(self) -> pd.DataFrame:
@@ -271,6 +347,177 @@ class TestExportTypedDataFrameToExcel:
         expected_data['Thrust'] = expected_data['Thrust'].astype('float64')
         
         assert_frame_equal(data_df, expected_data)
+
+
+class TestUpdateColumnData:
+    """Test suite for the `update_column_data` function."""
+
+    @pytest.fixture
+    def df_main_fixture(self) -> pd.DataFrame:
+        """Main DataFrame with some missing values."""
+        data = {
+            "ID": [1, 2, 3, 4],
+            "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
+            "ValueA": [100.0, np.nan, 300.0, 400.0],
+            "ValueB": [10.0, 20.0, np.nan, 40.0],
+        }
+        return pd.DataFrame(data)
+
+    @pytest.fixture
+    def df_other_fixture(self) -> pd.DataFrame:
+        """'Other' DataFrame with updated values."""
+        data = {
+            "ID": [2, 4, 5],  # ID 2 matches, ID 4 matches, ID 5 is new
+            "Description": ["Bravo_new", "Delta_new", "Echo_new"],
+            "ValueA": [250.0, 450.0, 500.0],
+            "ValueB": [25.0, 45.0, 55.0],
+        }
+        return pd.DataFrame(data)
+
+    def test_basic_update_fills_nan(self, df_main_fixture, df_other_fixture):
+        """Tests if NaN values in the main DataFrame are filled correctly."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+
+        # Expected result: ValueA for ID 2 is updated, ID 4 is also updated (overwritten)
+        expected_data = {
+            "ID": [1, 2, 3, 4],
+            "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
+            "ValueA": [100.0, 250.0, 300.0, 450.0],
+            "ValueB": [10.0, 20.0, np.nan, 40.0],
+        }
+        expected_df = pd.DataFrame(expected_data)
+
+        assert_frame_equal(result_df, expected_df)
+
+    def test_overwrite_existing_values(self, df_main_fixture, df_other_fixture):
+        """Tests if existing, non-NaN values are correctly overwritten."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+        # Value for ID 4 was 400.0 and should be overwritten by 450.0
+        assert result_df.loc[result_df["ID"] == 4, "ValueA"].iloc[0] == 450.0
+
+    def test_multiple_column_update(self, df_main_fixture, df_other_fixture):
+        """Tests if the function can update multiple columns at once."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA", "ValueB"],
+        )
+
+        expected_data = {
+            "ID": [1, 2, 3, 4],
+            "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
+            "ValueA": [100.0, 250.0, 300.0, 450.0],
+            "ValueB": [10.0, 25.0, np.nan, 45.0],
+        }
+        expected_df = pd.DataFrame(expected_data)
+
+        assert_frame_equal(result_df, expected_df)
+
+    def test_no_side_effects(self, df_main_fixture, df_other_fixture):
+        """Ensures the original input DataFrames are not modified."""
+        df_main_original = df_main_fixture.copy()
+        df_other_original = df_other_fixture.copy()
+
+        update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+
+        assert_frame_equal(df_main_fixture, df_main_original)
+        assert_frame_equal(df_other_fixture, df_other_original)
+
+    def test_no_matching_rows_in_other(self, df_main_fixture):
+        """Tests behavior when the other DataFrame has no matching keys."""
+        df_other_nomatch = pd.DataFrame({
+            "ID": [10, 11],
+            "ValueA": [1000.0, 1100.0],
+        })
+
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_nomatch,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+
+        # The result should be identical to the original main DataFrame
+        assert_frame_equal(result_df, df_main_fixture)
+
+    def test_empty_other_dataframe(self, df_main_fixture):
+        """Tests behavior with an empty 'other' DataFrame."""
+        df_other_empty = pd.DataFrame(columns=["ID", "ValueA", "ValueB"])
+
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_empty,
+            merge_column="ID",
+            list_columns=["ValueA", "ValueB"],
+        )
+
+        # The result should be identical to the original main DataFrame
+        assert_frame_equal(result_df, df_main_fixture)
+
+    def test_no_new_rows_are_added(self, df_main_fixture, df_other_fixture):
+        """Confirms that rows existing only in 'other' are not added to 'main'."""
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_fixture,
+            merge_column="ID",
+            list_columns=["ValueA"],
+        )
+        assert len(result_df) == len(df_main_fixture)
+        assert 5 not in result_df["ID"].values
+
+    def test_missing_columns_raise_key_error(self, df_main_fixture, df_other_fixture):
+        """Tests if a KeyError is raised for missing columns."""
+        # Test missing merge_column in main_df
+        with pytest.raises(KeyError, match="'WrongID' not in main DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture,
+                merge_column="WrongID",
+                list_columns=["ValueA"],
+            )
+
+        # Test missing merge_column in other_df
+        with pytest.raises(KeyError, match="'ID' not in other DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture.rename(columns={"ID": "WrongID"}),
+                merge_column="ID",
+                list_columns=["ValueA"],
+            )
+
+        # Test missing update column in main_df
+        with pytest.raises(KeyError, match="'ValueC' not in main DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture,
+                merge_column="ID",
+                list_columns=["ValueC"],
+            )
+
+        # Test missing update column in other_df
+        with pytest.raises(KeyError, match="'ValueB' not in other DataFrame columns"):
+            update_column_data(
+                df_main=df_main_fixture,
+                df_other=df_other_fixture.drop(columns=["ValueB"]),
+                merge_column="ID",
+                list_columns=["ValueA", "ValueB"],
+            )
 
 
 class TestMergeWildcard:
