@@ -8,6 +8,8 @@ nav:
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
     - Decomposition: 'theory/decomposition.md'
+  - Tutorials:
+    - Weight: 'tutorials/weight.ipynb'
   - API (Calculations):
     - Engines: 'api/calculations/engines.md'
     - Aerodynamics: 'api/calculations/aerodynamics.md'
@@ -26,7 +28,7 @@ nav:
   - Changelog: 'changelog.md'
 theme: # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
   name: material
-  #custom_dir: docs/_overrides
+  custom_dir: docs/_overrides
   logo: _static/logos/aircraftdetective_logo.svg
   favicon: _static/logos/aircraftdetective_logo.svg
   highlightjs: true
@@ -68,7 +70,6 @@ plugins:
   - mkdocs-jupyter:
       execute: false
       include_source: True
-      include_requirejs: true
 markdown_extensions:
   - admonition
   - pymdownx.superfences
