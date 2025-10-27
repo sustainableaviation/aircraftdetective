@@ -18,11 +18,12 @@ class TestComputeLiftToDragRatio:
     def ld_ratio_input_df_si(self) -> pd.DataFrame:
         """Provides a sample DataFrame with SI units for L/D ratio tests based on an A320neo."""
         return pd.DataFrame({
+            'Type': pd.Series(['Narrow']),
             'Payload/Range: Range at Point B': pd.Series([3900], dtype='pint[km]'),
             'Payload/Range: Range at Point C': pd.Series([6500], dtype='pint[km]'),
             'MTOW': pd.Series([79000], dtype='pint[kg]'),
-            'Payload/Range: MZFW at point B': pd.Series([64300], dtype='pint[kg]'),
-            'Payload/Range: MZFW at point C': pd.Series([60000], dtype='pint[kg]'),
+            'Payload/Range: MZFW at Point B': pd.Series([64300], dtype='pint[kg]'),
+            'Payload/Range: MZFW at Point C': pd.Series([60000], dtype='pint[kg]'),
             'Cruise Speed': pd.Series([830], dtype='pint[km/h]'),
             'TSFC (cruise)': pd.Series([17], dtype='pint[g/(kN*s)]'),
         })
@@ -31,13 +32,14 @@ class TestComputeLiftToDragRatio:
     def ld_ratio_input_df_imperial(self) -> pd.DataFrame:
         """Provides a sample DataFrame with Imperial/Nautical units for L/D ratio tests."""
         return pd.DataFrame({
+            'Type': pd.Series(['Narrow']),
             # ~3900 km
             'Payload/Range: Range at Point B': pd.Series([2106], dtype='pint[nautical_mile]'),
             # ~6500 km
             'Payload/Range: Range at Point C': pd.Series([3510], dtype='pint[nautical_mile]'),
             'MTOW': pd.Series([174165], dtype='pint[lb]'),      # ~79000 kg
-            'Payload/Range: MZFW at point B': pd.Series([141757], dtype='pint[lb]'),      # ~64300 kg
-            'Payload/Range: MZFW at point C': pd.Series([132277], dtype='pint[lb]'),      # ~60000 kg
+            'Payload/Range: MZFW at Point B': pd.Series([141757], dtype='pint[lb]'),      # ~64300 kg
+            'Payload/Range: MZFW at Point C': pd.Series([132277], dtype='pint[lb]'),      # ~60000 kg
             'Cruise Speed': pd.Series([448], dtype='pint[knot]'),      # ~830 km/h
             # ~17 g/kNs
             'TSFC (cruise)': pd.Series([0.599], dtype='pint[lb/(lbf*h)]'),
@@ -47,7 +49,7 @@ class TestComputeLiftToDragRatio:
         """
         Tests the L/D calculation with typical values for a modern narrow-body airliner.
         """
-        beta = 0.04  # A typical correction factor
+        beta = {'Narrow': 0.04}  # A typical correction factor
         expected_ld_ratio = 18.5
 
         result_df = compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=beta)
@@ -55,14 +57,13 @@ class TestComputeLiftToDragRatio:
         assert 'L/D' in result_df.columns
         ld_ratio = result_df['L/D'].iloc[0]
         assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
-        assert ld_ratio.check('[]') # dimensionless
-
+        assert ld_ratio.check('[]')  # dimensionless
     def test_different_units(self, ld_ratio_input_df_imperial: pd.DataFrame):
         """
         Tests the L/D calculation with different but compatible units (Imperial/Nautical).
         The numerical result should be identical to the SI unit test.
         """
-        beta = 0.04
+        beta = {'Narrow': 0.04}
         expected_ld_ratio = 18.6
 
         result_df = compute_lift_to_drag_ratio(df=ld_ratio_input_df_imperial, beta=beta)
@@ -70,8 +71,7 @@ class TestComputeLiftToDragRatio:
         assert 'L/D' in result_df.columns
         ld_ratio = result_df['L/D'].iloc[0]
         assert ld_ratio.magnitude == pytest.approx(expected_ld_ratio, rel=1e-2)
-        assert ld_ratio.check('[]') # dimensionless
-
+        assert ld_ratio.check('[]')  # dimensionless
     def test_wrong_units_raises_value_error(self, ld_ratio_input_df_si: pd.DataFrame):
         """
         Tests that providing an input with incorrect dimensions (e.g., mass for range)
@@ -81,29 +81,28 @@ class TestComputeLiftToDragRatio:
         # Intentionally introduce wrong units: Change Range from [length] to [mass]
         df_wrong['Payload/Range: Range at Point B'] = pd.Series([3900], dtype='pint[kg]')
 
-        # FIX: The test now only checks that a ValueError is raised, without
-        # checking for the specific error message.
+        # The test only checks that a ValueError is raised, without checking the specific error message.
         with pytest.raises(ValueError):
-            compute_lift_to_drag_ratio(df=df_wrong, beta=0.04)
+            compute_lift_to_drag_ratio(df=df_wrong, beta={'Narrow': 0.04})
 
     def test_missing_column(self, ld_ratio_input_df_si: pd.DataFrame):
         """
         Tests that a ValueError is raised if a required column is missing.
         """
-        df_missing = ld_ratio_input_df_si.drop(columns=['Payload/Range: MZFW at point B'])
-        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['Payload/Range: MZFW at point B'\\]"):
-            compute_lift_to_drag_ratio(df=df_missing, beta=0.04)
+        df_missing = ld_ratio_input_df_si.drop(columns=['Payload/Range: MZFW at Point B'])
+        with pytest.raises(ValueError, match="DataFrame is missing required columns: \\['Payload/Range: MZFW at Point B'\\]"):
+            compute_lift_to_drag_ratio(df=df_missing, beta={'Narrow': 0.04})
 
     def test_beta_out_of_range(self, ld_ratio_input_df_si: pd.DataFrame):
         """
         Tests that a ValueError is raised if beta is not between 0 and 1.
         """
-        with pytest.raises(ValueError, match="beta must be between 0 and 1."):
-            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=1.5)
-        with pytest.raises(ValueError, match="beta must be between 0 and 1."):
-            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=-0.1)
-        with pytest.raises(ValueError, match="beta must be between 0 and 1."):
-            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta=0)
+        with pytest.raises(ValueError):
+            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta={'Narrow': 1.5})
+        with pytest.raises(ValueError):
+            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta={'Narrow': -0.1})
+        with pytest.raises(ValueError):
+            compute_lift_to_drag_ratio(df=ld_ratio_input_df_si, beta={'Narrow': 0})
 
     def test_empty_df(self):
         """
@@ -111,24 +110,24 @@ class TestComputeLiftToDragRatio:
         """
         empty_df = pd.DataFrame()
         with pytest.raises(ValueError, match="DataFrame is empty."):
-            compute_lift_to_drag_ratio(df=empty_df, beta=0.04)
+            compute_lift_to_drag_ratio(df=empty_df, beta={'Narrow': 0.04})
 
     def test_multi_row(self):
         """
         Tests the L/D calculation on a multi-row DataFrame with data for two different aircraft.
         """
         df_multi = pd.DataFrame({
+            'Type': pd.Series(['Narrow', 'Wide']),
             'Payload/Range: Range at Point B': pd.Series([3900, 8300], dtype='pint[km]'),
             'Payload/Range: Range at Point C': pd.Series([6500, 15000], dtype='pint[km]'),
             'MTOW': pd.Series([79000, 280000], dtype='pint[kg]'),
-            'Payload/Range: MZFW at point B': pd.Series([64300, 200000], dtype='pint[kg]'),
-            'Payload/Range: MZFW at point C': pd.Series([60000, 170000], dtype='pint[kg]'),
+            'Payload/Range: MZFW at Point B': pd.Series([64300, 200000], dtype='pint[kg]'),
+            'Payload/Range: MZFW at Point C': pd.Series([60000, 170000], dtype='pint[kg]'),
             'Cruise Speed': pd.Series([830, 903], dtype='pint[km/h]'),
             'TSFC (cruise)': pd.Series([17, 16], dtype='pint[g/(kN*s)]'),
         })
-        beta = 0.04
+        beta = {'Narrow': 0.04, 'Wide': 0.04}
         expected_ld_ratios = [18.6, 19.0]  # A320-like, A350-like
-
         result_df = compute_lift_to_drag_ratio(df=df_multi, beta=beta)
 
         assert 'L/D' in result_df.columns

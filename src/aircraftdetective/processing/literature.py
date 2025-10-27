@@ -99,3 +99,12 @@ def process_data_babikian_figures(
         ],
     inplace=True)
     return df
+
+
+def overwrite_with_literature_data(
+    df: pd.DataFrame
+) -> pd.DataFrame:
+    r"""
+    ABC
+    """
+    return
