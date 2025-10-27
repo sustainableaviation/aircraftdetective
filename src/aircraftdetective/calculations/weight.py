@@ -61,6 +61,6 @@ def calculate_weight_metrics(
     
     grouped = df_func.groupby('Type', group_keys=False)
     max_by_type = grouped['OEW/Exit Limit'].transform('max')
-    df_func['norm(OEW/Exit Limit)'] = np.where(max_by_type != 0, df_func['OEW/Exit Limit'] / max_by_type, np.nan)
+    df_func['norm(OEW/Exit Limit)'] = df_func['OEW/Exit Limit'] / max_by_type
 
     return df_func
