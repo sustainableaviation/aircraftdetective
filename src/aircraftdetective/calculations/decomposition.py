@@ -2,7 +2,6 @@
 import math
 import pandas as pd
 import numpy as np
-from aircraftdetective.utility.statistics import _r_squared
 
 
 def compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
@@ -350,18 +349,17 @@ def _compute_lmdi_factor_contributions_vectorized(
     
     return pd.Series(delta_contribution).fillna(0.0)
 
-
 def compute_efficiency_disaggregation(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     Computes the LMDI disaggregation of aircraft sub-efficiency factors.
 
     This function decomposes the change in an aggregate efficiency index
-    (e.g., `Index(EU)`) relative to the baseline year (where Index = 1.0)
-    into the additive contributions from its constituent factors
+    (e.g., `Index(EU)`) relative to the baseline year (the first year in
+    the DataFrame) into the additive contributions from its constituent factors
     (e.g., `Index(Engines)`, `Index(Weight)`).
     
-    The baseline ($t_1$) values for all indices are 1.0. The current
-    row's values are used as $t_2$.
+    The baseline ($t_1$) values are taken from the first row of the
+    DataFrame (after sorting by `Year`). The current row's values are used as $t_2$.
 
     See Also
     --------
@@ -429,10 +427,14 @@ def compute_efficiency_disaggregation(df: pd.DataFrame) -> pd.DataFrame:
             raise ValueError(f"Required column '{col}' not found in df columns")
         if df[col].isnull().all():
             raise ValueError(f"Column '{col}' cannot be all NaN")
-        if col not in ['Year'] and not pd.api.types.is_numeric_dtype(df[col]):
+        
+        # --- FIX 1: Check ALL columns for numeric type ---
+        if not pd.api.types.is_numeric_dtype(df[col]):
             raise ValueError(f"Column '{col}' must be of a numeric type.")
             
-    if (df[list_required_cols] <= 0).any().any():
+    # --- FIX 2: Check ONLY Index columns for non-positive values ---
+    numeric_cols = [c for c in list_required_cols if c not in ['Year']]
+    if (df[numeric_cols] <= 0).any().any():
             raise ValueError("All Index columns must contain positive values for LMDI.")
 
     df_func = df.copy()
