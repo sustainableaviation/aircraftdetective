@@ -6,7 +6,7 @@ import numpy as np
 
 from aircraftdetective.calculations.decomposition import (
     _compute_lmdi_factor_contributions,
-    _compute_improvement_metrics
+    _compute_efficiency_improvement_metrics
 )
 
 
@@ -50,7 +50,7 @@ def prepared_data(sample_aircraft_data: pd.DataFrame) -> pd.DataFrame:
 
 class TestComputeImprovementMetrics:
     """
-    Test suite for the _compute_improvement_metrics function.
+    Test suite for the _compute_efficiency_improvement_metrics function.
     """
 
     def test_calculations_with_sample_data(self, prepared_data):
@@ -62,7 +62,7 @@ class TestComputeImprovementMetrics:
         - Narrow (YOI 2000): EU=120, TSFC=1.0, OEW=250, L/D=12
         - Wide (YOI 2005):   EU=100, TSFC=0.8, OEW=320, L/D=15
         """
-        result_df = _compute_improvement_metrics(prepared_data)
+        result_df = _compute_efficiency_improvement_metrics(prepared_data)
 
         # Build the expected DataFrame, sorted by YOI (as the function does)
         expected_data = {
@@ -147,14 +147,14 @@ class TestComputeImprovementMetrics:
         Ensures the function does not modify the input DataFrame in place.
         """
         original_copy = prepared_data.copy()
-        _compute_improvement_metrics(prepared_data)
+        _compute_efficiency_improvement_metrics(prepared_data)
         pd_testing.assert_frame_equal(prepared_data, original_copy)
 
     def test_preserves_other_columns(self, prepared_data):
         """
         Ensures that columns not used in the calculation are preserved.
         """
-        result_df = _compute_improvement_metrics(prepared_data)
+        result_df = _compute_efficiency_improvement_metrics(prepared_data)
         
         assert 'Other_Data' in result_df.columns
         # Check that the set of values is preserved, even if order changes
@@ -167,7 +167,7 @@ class TestComputeImprovementMetrics:
         This test *intentionally* uses the *un-prepared* fixture.
         """
         with pytest.raises(ValueError, match="Required column 'Energy Use \(per ASK\)' not found"):
-            _compute_improvement_metrics(sample_aircraft_data)
+            _compute_efficiency_improvement_metrics(sample_aircraft_data)
 
     @pytest.mark.parametrize(
         "invalid_df, match_message",
@@ -213,7 +213,7 @@ class TestComputeImprovementMetrics:
         Tests all validation checks that should raise a ValueError.
         """
         with pytest.raises(ValueError, match=match_message):
-            _compute_improvement_metrics(invalid_df)
+            _compute_efficiency_improvement_metrics(invalid_df)
 
 
 class TestLmdiFactorContributions:

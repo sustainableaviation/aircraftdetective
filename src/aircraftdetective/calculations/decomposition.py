@@ -5,7 +5,7 @@ import numpy as np
 from aircraftdetective.utility.statistics import _r_squared
 
 
-def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
+def _compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     Computes the relative improvement $\Delta\%x$ between times $t=0$ and $t=T$
     $$
@@ -17,14 +17,12 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     $$
     of relevant aircraft efficiency metrics in a dataframe.
 
-    Given a dataframe of the kind:
-
-    | YOI | Type | EU  | TSFC | OEW/Exit Limit | L/D |
-    |-----|------|-----|------|----------------|-----|
-    | ... | ...  | ... | ...  | ...            | ... |
-
-    the function computes relative improvements and indices in energy use (EU), thrust-specific fuel consumption (TSFC),
-    weight per available seat (OEW/Exit Limit) and lift-to-drag ratio (L/D) compared to the first year available in the dataframe.
+    Given an input DataFrame, the function computes [relative improvements](https://en.wikipedia.org/wiki/Percentage) 
+    and [indices](https://en.wikipedia.org/wiki/Index_(economics)) 
+    of the overall aircraft efficiency metrics energy use (EU) and energy intensity (EI) 
+    as well as the aircraft sub-efficiencies thrust-specific fuel consumption (TSFC), 
+    weight per available seat (OEW/Exit Limit) and lift-to-drag ratio (L/D), 
+    all compared to the first year available in the dataframe.
     
     Notes
     -----
@@ -34,18 +32,29 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     $$
     E_U [\text{J/ASK}] \propto TSFC \times \frac{W}{pax} \times \bigg(\frac{L}{D}\bigg)^{-1} 
     $$
+    Aircraft energy intensity $E_I$ as per Eqn. (1) in [Babikian et al. (2002)](https://doi.org/10.1016/S0969-6997(02)00020-0)
+    is defined as the energy use per revenue passenger kilometer (RPK):
+    $$
+    E_I [\text{J/RPK}] = \frac{E_U [\text{J/ASK}]}{SLF}
+    $$
     where
     
-    | Symbol         | Unit        | Description                                | 
-    |----------------|-------------|--------------------------------------------|
-    | $E_U$          | J/ASK       | Energy use per available seat kilometer    |
-    | $TSFC$         | N/(W·s)     | Thrust-specific fuel consumption           |
-    | $W/pax$        | N           | Weight per available seat (OEW/Exit Limit) |
-    | $L/D$          | -           | Lift-to-drag ratio                         |
+    | Symbol         | Unit        | Description                                 | 
+    |----------------|-------------|---------------------------------------------|
+    | $E_U$          | J/km        | Energy use _per available seat km_          |
+    | $E_I$          | J/km        | Energy intensity _per revenue passenger km_ |
+    | $TSFC$         | N/(W·s)     | Thrust-specific fuel consumption            |
+    | $W/pax$        | N           | Weight per available seat (OEW/Exit Limit)  |
+    | $L/D$          | -           | Lift-to-drag ratio                          |
+    | $SLF$          | -           | Seat load factor                            |
 
-    this can also be written in terms of aircraft sub-efficiencies as:
+    Overall efficiency (technological only) can also be written in terms of aircraft sub-efficiencies as:
     $$
-    \eta_{tot} \propto \eta_{eng} \times \eta_{aero} \times \eta_{struct}
+    \eta_{tech} \propto \eta_{eng} \times \eta_{aero} \times \eta_{struct}
+    $$
+    and overall efficiecy (technological and operational) can also be written in terms of aircraft sub-efficiencies as:
+    $$
+    \eta_{tech+ops} \propto \eta_{eng} \times \eta_{aero} \times \eta_{struct} \times \eta_{ops}
     $$
     where
     
@@ -55,6 +64,7 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
     | $\eta_{eng}$    | $\propto TSFC^{-1}$                    | Engine efficiency      |
     | $\eta_{aero}$   | $\propto L/D$                          | Aerodynamic efficiency |
     | $\eta_{struct}$ | $\propto (OEW/\text{Exit Limit})^{-1}$ | Structural efficiency  |
+    | $\eta_{ops}$    | $\propto SLF$                          | Operational efficiency |
 
     Warning
     -------
@@ -88,12 +98,14 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame containing the aircraft sub-efficiency data.  
         Must contain at least the columns:
 
-        - `YOI`
+        - `Year`
         - `Type`
         - `Energy Use (per ASK)`
+        - `Energy Intensity (per RPK)`
         - `TSFC (cruise)`
         - `OEW/Exit Limit`
         - `L/D`
+        - `SLF`
 
     Returns
     -------
@@ -101,13 +113,17 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with additional columns for relative improvements in EU, TSFC, OEW/Exit Limit, and L/D:
         
         - `Index(Energy use (per ASK))`
+        - `Index(Energy Intensity (per RPK))`
         - `Index(TSFC (cruise))`
         - `Index(OEW/Exit Limit)`
         - `Index(L/D)`
+        - `Index(SLF)`
         - `Percent(Energy use (per ASK))`
+        - `Percent(Energy Intensity (per RPK))`
         - `Percent(TSFC (cruise))`
         - `Percent(OEW/Exit Limit)`
-        - `Percent(L/D)`        
+        - `Percent(L/D)`
+        - `Percent(SLF)`
 
     Raises
     ------
@@ -126,11 +142,13 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
             raise ValueError("Input `df` must be a non-empty Pandas DataFrame.")
 
     list_required_cols = [
-        'YOI', 'Type',
+        'Year',
         'Energy Use (per ASK)',
+        'Energy Intensity (per RPK)',
         'TSFC (cruise)',
         'OEW/Exit Limit',
-        'L/D'
+        'L/D',
+        'SLF',
     ]
     for col in list_required_cols:
         if col not in df.columns:
@@ -146,15 +164,19 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
     metrics = [
         'Energy Use (per ASK)',
+        'Energy Intensity (per RPK)',
         'TSFC (cruise)',
         'OEW/Exit Limit',
-        'L/D'
+        'L/D',
+        'SLF'
     ]
     metrics_inverse = {
-        'Energy Use (per ASK)': True,  # lower is better
-        'TSFC (cruise)': True,         # lower is better
-        'OEW/Exit Limit': True,        # lower is better
-        'L/D': False                   # higher is better
+        'Energy Use (per ASK)': True,        # lower is better
+        'Energy Intensity (per RPK)': True,  # lower is better
+        'TSFC (cruise)': True,               # lower is better
+        'OEW/Exit Limit': True,              # lower is better
+        'L/D': False,                        # higher is better
+        'SLF': False                         # higher is better
     }
 
     baselines = {}
@@ -187,6 +209,67 @@ def _compute_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
                 df_func[pct_col] = np.where(s != 0, (x0 / s - 1.0) * 100.0, np.nan)
             else:
                 df_func[pct_col] = np.where(x0 != 0, (s / x0 - 1.0) * 100.0, np.nan)
+
+    return df_func
+
+
+def compute_efficiency_disaggregation(df: pd.DataFrame) -> pd.DataFrame:
+    r"""
+    Computes the year-over-year LMDI disaggregation for efficiency factors.
+
+    - `Index(Energy use (per ASK))` -> 'overall_index'
+    - `Index(TSFC (cruise))`       -> 'engines_index'
+    - `Index(OEW/Exit Limit)`    -> 'struct_index'
+    - `Index(L/D)`                 -> 'aero_index' (Assumed name)
+    """
+    df_func = df.copy()
+    df_func = df_func.sort_values(by='YOI', ascending=True)
+
+    required_cols = [
+        'Index(Total)',
+        'Index(TSFC (cruise))',
+        'Index(OEW/Exit Limit)',
+        'Index(L/D)'
+    ]
+    for col in required_cols:
+        if col not in df_func.columns:
+            raise ValueError(f"Required column '{col}' not found in df columns")
+    
+    for col_factor in [
+        'Index(TSFC (cruise))',
+        'Index(OEW/Exit Limit)',
+        'Index(L/D)'
+    ]:
+        df_func
+    
+    
+    # Get values from the previous time step (t-1)
+    agg_t1 = df_func[AGGREGATE_COL].shift(1)
+    
+    # Iterate over all three factors and compute their contributions
+    for factor_col, output_col in FACTOR_MAPPING.items():
+        
+        # Get factor values for t (current row) and t-1 (previous row)
+        fac_t2 = df_func[factor_col]
+        fac_t1 = df_func[factor_col].shift(1)
+        
+        # Apply the helper function row-by-row
+        # We use a list comprehension as it's often faster than .apply()
+        # for simple functions.
+        df_func[output_col] = [
+            _compute_lmdi_factor_contributions(
+                aggregate_t1=a1,
+                aggregate_t2=a2,
+                factor_t1=f1,
+                factor_t2=f2
+            ) 
+            for a1, a2, f1, f2 in zip(
+                agg_t1, 
+                df_func[AGGREGATE_COL], 
+                fac_t1, 
+                fac_t2
+            )
+        ]
 
     return df_func
 
