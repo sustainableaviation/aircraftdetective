@@ -259,6 +259,10 @@ def update_column_data(
     | B737-200C            | (...) | 0.5           |
     | A380-800             | (...) | **0.7**       |
 
+    Warnings
+    --------
+    Values in `df_other` will only overwrite values in `df_main` if they are not `NaN`.
+
     Parameters
     ----------
     df_main : pd.DataFrame
