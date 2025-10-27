@@ -5,4 +5,4 @@
 ![Aircraft Diagram](_static/C45.png)
 
 Cutaway derived from the _Flight Handbook USAF Series C45H Aircraft, AN 1-90CDC-1, 1953_  
-[Public domain image, via Wikimedia Commons.](https://commons.wikimedia.org/wiki/File:C-45_General_Arrangement_Diagram_%E2%80%93_Without_Labels.png)
+[Adapted from a public domain image via Wikimedia Commons.](https://commons.wikimedia.org/wiki/File:C-45_General_Arrangement_Diagram_%E2%80%93_Without_Labels.png)
