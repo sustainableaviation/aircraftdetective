@@ -137,9 +137,9 @@ def process_data_usdot_t2(
     pd.DataFrame
         A [`pint-pandas`](https://pint-pandas.readthedocs.io/en/latest/) DataFrame with support for physical units, containing the processed T2 data.  
 
-        | Aircraft Designation (US DOT Schedule T2)  | Fuel/Available Seat Distance | Fuel/Revenue Seat Distance | Fuel Flow          | Airborne Efficiency | SLF    |
-        |--------------------------------------------|------------------------------|----------------------------|--------------------|---------------------|--------|
-        | string                                     | pint[gallons/mile]           | pint[gallons/mile]         | pint[gallons/hour] | pint[]              | pint[] |
+        | Aircraft Designation (US DOT Schedule T2)  | Fuel/Available Seat Distance | Fuel/Revenue Seat Distance | Fuel Flow          | Airborne Efficiency |
+        |--------------------------------------------|------------------------------|----------------------------|--------------------|---------------------|
+        | string                                     | pint[gallons/mile]           | pint[gallons/mile]         | pint[gallons/hour] | pint[]              |
         
     Example
     -------
@@ -309,7 +309,7 @@ def process_data_usdot_t2(
         'Energy Use (per ASK)',
         'Energy Intensity (per RPK)',
         'Airborne Efficiency',
-        'SLF',
+        # 'SLF',
         'Revenue Passenger Distance',
     ]
 
