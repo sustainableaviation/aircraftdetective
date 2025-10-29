@@ -9,7 +9,7 @@ from aircraftdetective.data.constants import g_acceleration
 
 def compute_lift_to_drag_ratio(
     df: pd.DataFrame,
-    beta: float,
+    beta: dict[str, float],
 ) -> pd.DataFrame:
     r"""
     Given points from a payload/range diagram of an aircraft,
@@ -91,13 +91,21 @@ def compute_lift_to_drag_ratio(
         |-----------------------------------|---------------------|
         | `Payload/Range: Range at Point B` | [length]            |
         | `Payload/Range: Range at Point C` | [length]            |
-        | `MTOW`                            | [mass]              |
-        | `MZFW`                            | [mass]              |
+        | `Payload/Range: MZFW at Point B`  | [mass]              |
+        | `Payload/Range: MZFW at Point C`  | [mass]              |
         | `Cruise Speed`                    | [length/time]       |
         | `TSFC (cruise)`                   | [mass/(force*time)] |   
 
-    beta : float
-        Correction factor for the Breguet range equation, typically between 0.4 and 0.6.
+    beta : dict[str, float]
+        Correction factor for the Breguet range equation, typically between 0.4 and 0.6.  
+        Specific to aircraft type, e.g.:
+
+        ```python
+        beta = {
+            'Narrow': 0.06,
+            'Wide': 0.04,
+        }
+        ```
 
     Returns
     -------
@@ -112,50 +120,51 @@ def compute_lift_to_drag_ratio(
     Example
     -------
     ```pyodide install='aircraftdetective'
-    import pandas as pd
-    from aircraftdetective.calculations.aerodynamics import compute_lift_to_drag_ratio
-    df = pd.DataFrame(
-        {
-            'Payload/Range: Range at Point B': pd.Series([13000, 15000], dtype='pint[km]'),
-            'Payload/Range: Range at Point C': pd.Series([6000, 7000], dtype='pint[km]'),
-            'MTOW': pd.Series([275000, 300000], dtype='pint[kg]'),
-            'MZFW': pd.Series([180000, 200000], dtype='pint[kg]'),
-            'Cruise Speed': pd.Series([900, 920], dtype='pint[km/h]'),
-            'TSFC (cruise)': pd.Series([16, 15], dtype='pint[mg/kNs]'),
-        }
-    )
-    compute_lift_to_drag_ratio(df=df, beta=0.5)
     ```
     """
     if df.empty:
         raise ValueError("DataFrame is empty.")
-    if not (0 < beta < 1):
-        raise ValueError("beta must be between 0 and 1.")
     
     _validate_dataframe_columns_with_units(
         df,
         {
             'Payload/Range: Range at Point B': '[length]',
             'Payload/Range: Range at Point C': '[length]',
-            'Payload/Range: MZFW at point B': '[mass]',
-            'Payload/Range: MZFW at point C': '[mass]',
+            'Payload/Range: MZFW at Point B': '[mass]',
+            'Payload/Range: MZFW at Point C': '[mass]',
             'MTOW': '[mass]',
             'Cruise Speed': '[length]/[time]',
             'TSFC (cruise)': '[time]/[length]',
         }
     )
-    
+    if 'Type' not in df.columns:
+            raise ValueError("The DataFrame must contain a 'Type' column when `beta` is a dict.")
+
     df_func = df.copy()
 
-    K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log((df_func['MTOW'] / df_func['Payload/Range: MZFW at point B']) * (1 - beta))
-    K_C: pd.Series = df_func['Payload/Range: Range at Point C'] / np.log((df_func['MTOW'] / df_func['Payload/Range: MZFW at point C']) * (1 - beta))
+    beta_series = df_func['Type'].map(beta)
+    if beta_series.isna().any():
+        missing_types = sorted(df_func.loc[beta_series.isna(), 'Type'].astype(str).unique())
+        raise ValueError(f"Missing beta for Type(s): {missing_types}. Provide all required mappings.")
+
+    if not ((beta_series > 0) & (beta_series < 1)).all():
+        bad_rows = beta_series.index[~((beta_series > 0) & (beta_series < 1))]
+        raise ValueError(f"`beta` values must be between 0 and 1 for all rows. Bad indices: {list(bad_rows)}")
+
+    K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log(
+        (df_func['MTOW'] / df_func['Payload/Range: MZFW at Point B']) * (1 - beta_series)
+    )
+    K_C: pd.Series = df_func['Payload/Range: Range at Point C'] / np.log(
+        (df_func['MTOW'] / df_func['Payload/Range: MZFW at Point C']) * (1 - beta_series)
+    )
     K_average = (K_B + K_C) / 2
+
     df_func['L/D'] = K_average * g_acceleration * df_func['TSFC (cruise)'] / df_func['Cruise Speed']
     df_func['L/D'] = df_func['L/D'].pint.to_base_units()
-    
+
     if not df_func['L/D'].pint.units.dimensionless:
         raise ValueError("Calculated L/D is not dimensionless, please check the input units.")
-    
+
     return df_func
 
 

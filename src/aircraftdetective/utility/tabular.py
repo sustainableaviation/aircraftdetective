@@ -234,6 +234,10 @@ def update_column_data(
     with the values from the second DataFrame for the specified columns, 
     based on a common merge column.
 
+    **This function also adds a new boolean column `Updated?(<col_name>)` 
+    immediately after each updated column to indicate if a value was 
+    populated from `df_other`.**
+
     Given a first DataFrame of the kind:
 
     | Aircraft Designation | (...) | TSFC (cruise) |
@@ -251,13 +255,18 @@ def update_column_data(
 
     for the merge column `Aircraft Designation`, 
     and the list of columns to update `['TSFC (cruise)']`,
-    the function will update the first DataFrame with the values from the second DataFrame:
+    the function will update the first DataFrame and add the indicator column:
 
-    | Aircraft Designation | (...) | TSFC (cruise) |
-    |----------------------|-------|---------------|
-    | B707-120             | (...) | **0.6**       |
-    | B737-200C            | (...) | 0.5           |
-    | A380-800             | (...) | **0.7**       |
+    | Aircraft Designation | (...) | TSFC (cruise) | Updated?(TSFC (cruise)) |
+    |----------------------|-------|---------------|-------------------------|
+    | B707-120             | (...) | **0.6** | **True** |
+    | B737-200C            | (...) | 0.5           | **False** |
+    | A380-800             | (...) | **0.7** | **True** |
+
+    Warnings
+    --------
+    Values in `df_other` will only overwrite values in `df_main` if they are not `NaN`.
+    If no matching row is found in `df_other`, `Updated?` will be `False`.
 
     Parameters
     ----------
@@ -273,7 +282,7 @@ def update_column_data(
     Returns
     -------
     pd.DataFrame
-        Updated DataFrame.
+        Updated DataFrame with new indicator columns.
 
     Raises
     ------
@@ -301,12 +310,22 @@ def update_column_data(
         suffixes=('', '_update')
     )
 
-    for col in list_columns:
-        df_main_updated[col] = df_main_updated[f"{col}_update"].astype(float).fillna(
-            df_main_updated[col].astype(float)
-        ).astype(df_main_updated[col].dtype)
+    final_column_order = []
+    for col in df_main.columns:
+        final_column_order.append(col)
+        
+        if col in list_columns:
+            update_col_name = f"Updated?({col})"
+            df_main_updated[update_col_name] = df_main_updated[f"{col}_update"].notna()
+            final_column_order.append(update_col_name)
 
-    df_main_updated = df_main_updated.drop(columns=[f"{col}_update" for col in list_columns])
+    for col in list_columns:
+        df_main_updated[col] = df_main_updated[col].where(
+        df_main_updated[f"{col}_update"].isna(),  # Condition (where update is NA)
+        df_main_updated[f"{col}_update"]          # 'other' (the new update value)
+    )
+
+    df_main_updated = df_main_updated[final_column_order]
 
     return df_main_updated
 

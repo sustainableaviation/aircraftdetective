@@ -10,6 +10,8 @@ nav:
     - Decomposition: 'theory/decomposition.md'
   - Tutorials:
     - Weight: 'tutorials/weight.ipynb'
+    - Engines: 'tutorials/engines.ipynb'
+    - Operations: 'tutorials/operations.ipynb'
   - API (Calculations):
     - Engines: 'api/calculations/engines.md'
     - Aerodynamics: 'api/calculations/aerodynamics.md'

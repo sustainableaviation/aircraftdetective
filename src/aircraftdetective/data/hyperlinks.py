@@ -1,4 +1,4 @@
-PATH_ZENODO_AIRCRAFT_DATABASE_FILE = r"https://zenodo.org/records/17287146/files/Aircraft%20Database.xlsx?download=1"
+PATH_ZENODO_AIRCRAFT_DATABASE_FILE = r"/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/Aircraft Database.xlsx"
 PATH_ZENODO_USDOT_T2_FILE = r"https://zenodo.org/records/17255995/files/05-10-2025_T_SCHEDULE_T2.csv?download=1"
 PATH_ZENODO_USDOT_ACFT_TYPES_FILE = r"https://zenodo.org/records/17255995/files/05-10-2025_L_AIRCRAFT_TYPES.csv?download=1"
 PATH_ZENODO_BABIKIAN_FILE = r"https://zenodo.org/records/14560914/files/Aircraft%20Efficiency%20Data%20Babikian%20et%20al%20(2002).xlsx?download=1"
@@ -8,3 +8,4 @@ PATH_ZENODO_AIRCRAFT_DATABASE_MANUFACTURERS_FILE = r"https://zenodo.org/records/
 PATH_ZENODO_AIRCRAFT_DATABASE_PROPERTIES_FILE = r"https://zenodo.org/records/14524630/files/properties.json?download=1"
 PATH_EASA_ENGINE_EMISSIONS_DATABANK_FILE = r"https://www.easa.europa.eu/en/downloads/131424/en"
 PATH_ZENODO_ENGINE_TSFC_CALIBRATION_FILE = r"https://zenodo.org/records/17275413/files/Engine%20Database%20(TSFC%20Data).xlsx?download=1"
+PATH_ZENODO_A4A_TRAFFIC_DATA = r"/Users/michaelweinold/Library/CloudStorage/OneDrive-TheWeinoldFamily/Documents/University/PhD/Data/Aircraft Performance/A4A Traffic and Operations.xlsx"

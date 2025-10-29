@@ -22,7 +22,7 @@ def process_data_weinold_database(
 
     See Also
     --------
-    [Weinold (2023) aircraft database in Excel format on Zenodo](https://doi.org/10.5281/zenodo.14382100)   
+    [Weinold (2023) aircraft database in Excel format on Zenodo](https://doi.org/10.5281/zenodo.14382100)
 
     Parameters
     ----------
@@ -99,3 +99,12 @@ def process_data_babikian_figures(
         ],
     inplace=True)
     return df
+
+
+def overwrite_with_literature_data(
+    df: pd.DataFrame
+) -> pd.DataFrame:
+    r"""
+    ABC
+    """
+    return

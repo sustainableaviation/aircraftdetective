@@ -348,7 +348,6 @@ class TestExportTypedDataFrameToExcel:
         
         assert_frame_equal(data_df, expected_data)
 
-
 class TestUpdateColumnData:
     """Test suite for the `update_column_data` function."""
 
@@ -374,8 +373,8 @@ class TestUpdateColumnData:
         }
         return pd.DataFrame(data)
 
-    def test_basic_update_fills_nan(self, df_main_fixture, df_other_fixture):
-        """Tests if NaN values in the main DataFrame are filled correctly."""
+    def test_basic_update_fills_nan_and_adds_indicator(self, df_main_fixture, df_other_fixture):
+        """Tests if NaN values are filled and the indicator column is correct."""
         result_df = update_column_data(
             df_main=df_main_fixture,
             df_other=df_other_fixture,
@@ -383,19 +382,23 @@ class TestUpdateColumnData:
             list_columns=["ValueA"],
         )
 
-        # Expected result: ValueA for ID 2 is updated, ID 4 is also updated (overwritten)
+        # Expected result: ValueA updated, and new 'Updated?(ValueA)' column added
         expected_data = {
             "ID": [1, 2, 3, 4],
             "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
-            "ValueA": [100.0, 250.0, 300.0, 450.0],
+            "ValueA": [100.0, 250.0, 300.0, 450.0],  # 2 and 4 updated
+            "Updated?(ValueA)": [False, True, False, True], # 2 and 4 are True
             "ValueB": [10.0, 20.0, np.nan, 40.0],
         }
         expected_df = pd.DataFrame(expected_data)
 
+        # Check column order as well
+        expected_columns = ["ID", "Description", "ValueA", "Updated?(ValueA)", "ValueB"]
+        assert list(result_df.columns) == expected_columns
         assert_frame_equal(result_df, expected_df)
 
-    def test_overwrite_existing_values(self, df_main_fixture, df_other_fixture):
-        """Tests if existing, non-NaN values are correctly overwritten."""
+    def test_overwrite_existing_values_and_sets_indicator(self, df_main_fixture, df_other_fixture):
+        """Tests if existing values are overwritten and the indicator is set."""
         result_df = update_column_data(
             df_main=df_main_fixture,
             df_other=df_other_fixture,
@@ -404,9 +407,16 @@ class TestUpdateColumnData:
         )
         # Value for ID 4 was 400.0 and should be overwritten by 450.0
         assert result_df.loc[result_df["ID"] == 4, "ValueA"].iloc[0] == 450.0
+        # Indicator for ID 4 should be True
+        assert result_df.loc[result_df["ID"] == 4, "Updated?(ValueA)"].iloc[0] == True
+        
+        # Value for ID 1 was 100.0 and was not in df_other
+        assert result_df.loc[result_df["ID"] == 1, "ValueA"].iloc[0] == 100.0
+        # Indicator for ID 1 should be False
+        assert result_df.loc[result_df["ID"] == 1, "Updated?(ValueA)"].iloc[0] == False
 
-    def test_multiple_column_update(self, df_main_fixture, df_other_fixture):
-        """Tests if the function can update multiple columns at once."""
+    def test_multiple_column_update_and_indicators(self, df_main_fixture, df_other_fixture):
+        """Tests updating multiple columns and adding multiple indicators."""
         result_df = update_column_data(
             df_main=df_main_fixture,
             df_other=df_other_fixture,
@@ -418,11 +428,55 @@ class TestUpdateColumnData:
             "ID": [1, 2, 3, 4],
             "Description": ["Alpha", "Bravo", "Charlie", "Delta"],
             "ValueA": [100.0, 250.0, 300.0, 450.0],
+            "Updated?(ValueA)": [False, True, False, True],
             "ValueB": [10.0, 25.0, np.nan, 45.0],
+            "Updated?(ValueB)": [False, True, False, True],
         }
         expected_df = pd.DataFrame(expected_data)
-
+        
+        expected_columns = ["ID", "Description", "ValueA", "Updated?(ValueA)", "ValueB", "Updated?(ValueB)"]
+        assert list(result_df.columns) == expected_columns
         assert_frame_equal(result_df, expected_df)
+
+    def test_nan_in_other_does_not_update(self, df_main_fixture):
+        """
+        Tests that a NaN value in df_other does not overwrite an existing
+        value in df_main and sets the indicator to False.
+        """
+        df_other_with_nan = pd.DataFrame({
+            "ID": [2, 4],
+            "ValueA": [np.nan, 450.0], # This NaN should NOT update ID 2's ValueA
+            "ValueB": [25.0, np.nan],  # This NaN should NOT update ID 4's ValueB
+        })
+        
+        result_df = update_column_data(
+            df_main=df_main_fixture,
+            df_other=df_other_with_nan,
+            merge_column="ID",
+            list_columns=["ValueA", "ValueB"],
+        )
+        
+        # Check ID 2
+        row_2 = result_df[result_df["ID"] == 2].iloc[0]
+        # ValueA was np.nan, df_other has np.nan -> stays np.nan
+        assert pd.isna(row_2["ValueA"])
+        # Updated?(ValueA) should be False because the update value was NaN
+        assert row_2["Updated?(ValueA)"] == False
+        # ValueB was 20.0, df_other has 25.0 -> updates to 25.0
+        assert row_2["ValueB"] == 25.0
+        # Updated?(ValueB) should be True
+        assert row_2["Updated?(ValueB)"] == True
+        
+        # Check ID 4
+        row_4 = result_df[result_df["ID"] == 4].iloc[0]
+        # ValueA was 400.0, df_other has 450.0 -> updates to 450.0
+        assert row_4["ValueA"] == 450.0
+        # Updated?(ValueA) should be True
+        assert row_4["Updated?(ValueA)"] == True
+        # ValueB was 40.0, df_other has np.nan -> stays 40.0
+        assert row_4["ValueB"] == 40.0
+        # Updated?(ValueB) should be False
+        assert row_4["Updated?(ValueB)"] == False
 
     def test_no_side_effects(self, df_main_fixture, df_other_fixture):
         """Ensures the original input DataFrames are not modified."""
@@ -439,11 +493,12 @@ class TestUpdateColumnData:
         assert_frame_equal(df_main_fixture, df_main_original)
         assert_frame_equal(df_other_fixture, df_other_original)
 
-    def test_no_matching_rows_in_other(self, df_main_fixture):
-        """Tests behavior when the other DataFrame has no matching keys."""
+    def test_no_matching_rows_in_other_adds_false_indicator(self, df_main_fixture):
+        """Tests behavior when 'other' has no matching keys."""
         df_other_nomatch = pd.DataFrame({
             "ID": [10, 11],
             "ValueA": [1000.0, 1100.0],
+            "ValueB": [100.0, 110.0],
         })
 
         result_df = update_column_data(
@@ -453,10 +508,15 @@ class TestUpdateColumnData:
             list_columns=["ValueA"],
         )
 
-        # The result should be identical to the original main DataFrame
-        assert_frame_equal(result_df, df_main_fixture)
+        # The result should be the original main DataFrame + an indicator column
+        expected_df = df_main_fixture.copy()
+        # Find index of 'ValueA' to insert after it
+        loc = expected_df.columns.get_loc("ValueA") + 1
+        expected_df.insert(loc=loc, column="Updated?(ValueA)", value=False)
 
-    def test_empty_other_dataframe(self, df_main_fixture):
+        assert_frame_equal(result_df, expected_df)
+
+    def test_empty_other_dataframe_adds_false_indicators(self, df_main_fixture):
         """Tests behavior with an empty 'other' DataFrame."""
         df_other_empty = pd.DataFrame(columns=["ID", "ValueA", "ValueB"])
 
@@ -467,8 +527,14 @@ class TestUpdateColumnData:
             list_columns=["ValueA", "ValueB"],
         )
 
-        # The result should be identical to the original main DataFrame
-        assert_frame_equal(result_df, df_main_fixture)
+        # The result should be the original main DataFrame + indicator columns
+        expected_df = df_main_fixture.copy()
+        loc_A = expected_df.columns.get_loc("ValueA") + 1
+        expected_df.insert(loc=loc_A, column="Updated?(ValueA)", value=False)
+        loc_B = expected_df.columns.get_loc("ValueB") + 1
+        expected_df.insert(loc=loc_B, column="Updated?(ValueB)", value=False)
+
+        assert_frame_equal(result_df, expected_df)
 
     def test_no_new_rows_are_added(self, df_main_fixture, df_other_fixture):
         """Confirms that rows existing only in 'other' are not added to 'main'."""
@@ -519,7 +585,7 @@ class TestUpdateColumnData:
                 list_columns=["ValueA", "ValueB"],
             )
 
-
+            
 class TestMergeWildcard:
     """Test suite for the `left_merge_wildcard` function."""
 
