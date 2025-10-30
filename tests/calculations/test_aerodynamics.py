@@ -21,7 +21,7 @@ class TestComputeLiftToDragRatio:
             'Type': pd.Series(['Narrow']),
             'Payload/Range: Range at Point B': pd.Series([3900], dtype='pint[km]'),
             'Payload/Range: Range at Point C': pd.Series([6500], dtype='pint[km]'),
-            'MTOW': pd.Series([79000], dtype='pint[kg]'),
+            'Payload/Range: MTOW': pd.Series([79000], dtype='pint[kg]'),
             'Payload/Range: MZFW at Point B': pd.Series([64300], dtype='pint[kg]'),
             'Payload/Range: MZFW at Point C': pd.Series([60000], dtype='pint[kg]'),
             'Cruise Speed': pd.Series([830], dtype='pint[km/h]'),
@@ -37,7 +37,7 @@ class TestComputeLiftToDragRatio:
             'Payload/Range: Range at Point B': pd.Series([2106], dtype='pint[nautical_mile]'),
             # ~6500 km
             'Payload/Range: Range at Point C': pd.Series([3510], dtype='pint[nautical_mile]'),
-            'MTOW': pd.Series([174165], dtype='pint[lb]'),      # ~79000 kg
+            'Payload/Range: MTOW': pd.Series([174165], dtype='pint[lb]'),      # ~79000 kg
             'Payload/Range: MZFW at Point B': pd.Series([141757], dtype='pint[lb]'),      # ~64300 kg
             'Payload/Range: MZFW at Point C': pd.Series([132277], dtype='pint[lb]'),      # ~60000 kg
             'Cruise Speed': pd.Series([448], dtype='pint[knot]'),      # ~830 km/h
@@ -120,7 +120,7 @@ class TestComputeLiftToDragRatio:
             'Type': pd.Series(['Narrow', 'Wide']),
             'Payload/Range: Range at Point B': pd.Series([3900, 8300], dtype='pint[km]'),
             'Payload/Range: Range at Point C': pd.Series([6500, 15000], dtype='pint[km]'),
-            'MTOW': pd.Series([79000, 280000], dtype='pint[kg]'),
+            'Payload/Range: MTOW': pd.Series([79000, 280000], dtype='pint[kg]'),
             'Payload/Range: MZFW at Point B': pd.Series([64300, 200000], dtype='pint[kg]'),
             'Payload/Range: MZFW at Point C': pd.Series([60000, 170000], dtype='pint[kg]'),
             'Cruise Speed': pd.Series([830, 903], dtype='pint[km/h]'),

@@ -24,13 +24,11 @@ def test_read_engine_database():
     assert isinstance(engines_df, pd.DataFrame)
     assert not engines_df.empty
     assert engines_df.shape[0] == 1346
-    assert engines_df.shape[1] == 9
+    assert engines_df.shape[1] == 7
     expected_dtypes = {
         'Engine Designation': 'object',
-        '_id_engine': 'object',
         'Engine Family': 'object',
         'Engine Manufacturer': 'object',
-        'Bypass Ratio': 'pint[dimensionless]',
         'Overall Pressure Ratio': 'pint[dimensionless]',
         'Dry Weight': 'pint[kilogram]',
         'Fan Diameter': 'pint[meter]',

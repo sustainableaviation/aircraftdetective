@@ -234,7 +234,7 @@ def _read_engine_database(
     df = _rename_columns_and_set_units(
         df=df,
         column_names_and_units=[
-            # ('id', '_id_engine', 'str'), # aircraft-database.com internal id, not needed here
+            ('id', '_id_engine', 'str'), # aircraft-database.com internal id, not needed here
             ('name', 'Engine Designation', 'str'),
             ('engineFamily', 'Engine Family', 'str'),
             ('manufacturer', 'Engine Manufacturer', 'str'),
