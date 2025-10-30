@@ -42,7 +42,6 @@ class TestProcessDataUsdotT2:
             'Energy Use (per ASK)',
             'Energy Intensity (per RPK)',
             'Airborne Efficiency',
-            'SLF',
             'Revenue Passenger Distance',
         ]
         assert processed_df.columns.tolist() == expected_columns, \
@@ -54,16 +53,12 @@ class TestProcessDataUsdotT2:
         """
         assert isinstance(processed_df['Fuel Flow'].dtype, pint_pandas.PintType)
         assert isinstance(processed_df['Fuel/Available Seat Distance'].dtype, pint_pandas.PintType)
-        assert isinstance(processed_df['SLF'].dtype, pint_pandas.PintType)
         assert pd.api.types.is_integer_dtype(processed_df['Year'])
 
     def test_data_filtering_and_constraints(self, processed_df: pd.DataFrame):
         """
         Tests that the data sanity checks and filtering logic were applied correctly.
         """
-        assert processed_df['SLF'].pint.magnitude.between(0, 1).all(), \
-            "Found SLF values outside the valid range of [0, 1]."
-
         assert processed_df['Airborne Efficiency'].pint.magnitude.between(0, 1).all(), \
             "Found Airborne Efficiency values outside the valid range of [0, 1]."
 

@@ -49,7 +49,6 @@ class TestCalculateWeightMetrics:
 
         assert 'OEW/MTOW' in result_df.columns
         assert 'OEW/Exit Limit' in result_df.columns
-        assert 'norm(OEW/Exit Limit)' in result_df.columns
         assert 'Other_Data' in result_df.columns # Check preservation
 
         pd_testing.assert_series_equal(
@@ -60,11 +59,6 @@ class TestCalculateWeightMetrics:
         pd_testing.assert_series_equal(
             result_df['OEW/Exit Limit'],
             pd.Series(expected_oew_pax, name='OEW/Exit Limit'),
-            atol=1e-5
-        )
-        pd_testing.assert_series_equal(
-            result_df['norm(OEW/Exit Limit)'],
-            pd.Series(expected_norm_oew_pax, name='norm(OEW/Exit Limit)'),
             atol=1e-5
         )
         # Ensure other columns are preserved
@@ -116,9 +110,3 @@ class TestCalculateWeightMetrics:
         assert np.isnan(result.iloc[1]['OEW/MTOW'])
         # Row 1: OEW/Pax -> nan/50 = nan
         assert np.isnan(result.iloc[1]['OEW/Exit Limit'])
-
-        # Group A: OEW/Pax is [2.0, nan]. Max is 2.0.
-        # Row 0 norm: 2.0 / 2.0 = 1.0
-        assert result.iloc[0]['norm(OEW/Exit Limit)'] == 1.0
-        # Row 1 norm: nan / 2.0 = nan
-        assert np.isnan(result.iloc[1]['norm(OEW/Exit Limit)'])

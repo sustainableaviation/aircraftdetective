@@ -21,6 +21,7 @@ nav:
   - API (Data Processing):
     - USDOT Schedule T-2 Data: 'api/processing/usdot.md'
     - aircraft-database.com: 'api/processing/acftdb.md'
+    - A4A Traffic Data: 'api/processing/a4a.md'
     - Scientific Literature: 'api/processing/literature.md'
   - API (Utilities):
     - Tabular: 'api/utility/tabular.md'

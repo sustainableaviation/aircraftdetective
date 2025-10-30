@@ -4,6 +4,12 @@
     The format of this log is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
     This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## `0.0.6` (30. November 2025)
+
+### Bug Fixes
+
+- Fixed incorrect use of field `MTOW` instead of `Payload/Range: MTOW` in the `calculations.aerodynamics.compute_lift_to_drag_ratio` module.
+
 ## `0.0.5` (29. October 2025)
 
 ### Improvements

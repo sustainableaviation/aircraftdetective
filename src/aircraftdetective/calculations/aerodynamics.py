@@ -132,7 +132,7 @@ def compute_lift_to_drag_ratio(
             'Payload/Range: Range at Point C': '[length]',
             'Payload/Range: MZFW at Point B': '[mass]',
             'Payload/Range: MZFW at Point C': '[mass]',
-            'MTOW': '[mass]',
+            'Payload/Range: MTOW': '[mass]',
             'Cruise Speed': '[length]/[time]',
             'TSFC (cruise)': '[time]/[length]',
         }
@@ -152,10 +152,10 @@ def compute_lift_to_drag_ratio(
         raise ValueError(f"`beta` values must be between 0 and 1 for all rows. Bad indices: {list(bad_rows)}")
 
     K_B: pd.Series = df_func['Payload/Range: Range at Point B'] / np.log(
-        (df_func['MTOW'] / df_func['Payload/Range: MZFW at Point B']) * (1 - beta_series)
+        (df_func['Payload/Range: MTOW'] / df_func['Payload/Range: MZFW at Point B']) * (1 - beta_series)
     )
     K_C: pd.Series = df_func['Payload/Range: Range at Point C'] / np.log(
-        (df_func['MTOW'] / df_func['Payload/Range: MZFW at Point C']) * (1 - beta_series)
+        (df_func['Payload/Range: MTOW'] / df_func['Payload/Range: MZFW at Point C']) * (1 - beta_series)
     )
     K_average = (K_B + K_C) / 2
 

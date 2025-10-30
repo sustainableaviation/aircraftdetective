@@ -222,8 +222,6 @@ def scale_engine_data_from_icao_emissions_database(
 
     return df_engines
 
-    models4['Air Mass Flow [kg/s]'] = (air_density* flight_vel * math.pi * models4['Fan diameter,float,metre']**2)/4
-
 
 def calculate_air_mass_flow_rate(
     df: pd.DataFrame,
