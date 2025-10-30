@@ -236,31 +236,3 @@ def compute_aspect_ratio(
     df_func['Aspect Ratio'] = (df_func['Wingspan']**2) / df_func['Wing Area']
     df_func['Aspect Ratio'] = df_func['Aspect Ratio'].pint.to_base_units()
     return df_func
-
-
-def l_d(
-    V: float,
-    R: float,
-    TSFC_cruise: float,
-    MTOW: float,
-    MZFW: float,
-    beta: float,
-    g
-) -> float:
-    ld = (R * g * TSFC_cruise) / (V * np.log((MTOW / MZFW) * (1 - beta)))
-    return ld.to_base_units()
-
-def l_d_average(
-    V: float,
-    R_1: float,
-    R_2: float,
-    TSFC_cruise: float,
-    MTOW: float,
-    MZFW_1: float,
-    MZFW_2: float,
-    beta: float,
-    g
-) -> float:
-    K_average = (R_1 / np.log((MTOW / MZFW_1) * (1 - beta)) + R_2 / np.log((MTOW / MZFW_2) * (1 - beta))) / 2
-    ld = K_average * g * TSFC_cruise / V
-    return ld.to_base_units()
