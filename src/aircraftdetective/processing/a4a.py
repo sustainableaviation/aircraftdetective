@@ -7,7 +7,7 @@ def process_a4a_traffic_data(
 ) -> pd.DataFrame:
     """
     Processes A4A traffic and operations data.  
-    Data includes yearly passenger load factors.
+    Data includes yearly passenger load factors (=seat load factor (SLF)).
 
     Notes
     -----
@@ -31,11 +31,11 @@ def process_a4a_traffic_data(
         pd.DataFrame: A DataFrame containing A4A global traffic data:
 
         - `Year`
-        - `Passenger Load Factor`
+        - `SLF`
     """
     if path_xlsx_a4a is None:
         path_xlsx_a4a = PATH_ZENODO_A4A_TRAFFIC_DATA
     df = pd.read_excel(PATH_ZENODO_A4A_TRAFFIC_DATA)
     df = df[['Year', 'PLF']]
-    df.rename(columns={'PLF': 'Passenger Load Factor'}, inplace=True)
+    df.rename(columns={'PLF': 'SLF'}, inplace=True)
     return df

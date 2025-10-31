@@ -12,6 +12,7 @@ nav:
     - Weight: 'tutorials/weight.ipynb'
     - Engines: 'tutorials/engines.ipynb'
     - Operations: 'tutorials/operations.ipynb'
+    - Aerodynamics: 'tutorials/aerodynamics.ipynb'
   - API (Calculations):
     - Engines: 'api/calculations/engines.md'
     - Aerodynamics: 'api/calculations/aerodynamics.md'

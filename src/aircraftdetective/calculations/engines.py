@@ -125,7 +125,7 @@ def determine_takeoff_to_cruise_tsfc_ratio(
     return _compute_polynomials_from_dataframe(
         df=df_engines_grouped,
         col_name_x='TSFC (takeoff)',
-        list_col_names_y=['TSFC (cruise)'],
+        col_name_y='TSFC (cruise)',
         degree=degree,
         plot=plot
     )

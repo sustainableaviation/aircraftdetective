@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 def _compute_polynomials_from_dataframe(
     df: pd.DataFrame,
     col_name_x: str,
-    list_col_names_y: list[str],
+    col_name_y: str,
     degree: int,
     plot: bool = False
 ) -> dict[str, Any]:
@@ -30,6 +30,8 @@ def _compute_polynomials_from_dataframe(
         DataFrame containing the data for polynomial fitting.
     col_name_x : str
         Name of the column to be used as the x-axis for polynomial fitting.
+    col_name_y : str
+        Name of the column to be used as the y-axis for polynomial fitting.
     degree : int
         Degree of the polynomial to fit.
     
@@ -40,10 +42,8 @@ def _compute_polynomials_from_dataframe(
         Of the kind:  
         ```
         {
-            'Column1': Polynomial object,
-            'Column1_r2': float,
-            'Column2': Polynomial object,
-            'Column2_r2': float,
+            'polynomial': Polynomial object,
+            'r2': float,
             ...
         }
         ```
@@ -55,19 +55,18 @@ def _compute_polynomials_from_dataframe(
     from aircraftdetective.utility.statistics import _compute_polynomials_from_dataframe
     data = {
         'Year': [2000, 2005, 2010, 2015],
-        'Value1': [10, 15, 20, 25],
-        'Value2': [30, 25, 20, 15]
+        'Value': [10, 15, 20, 25],
     }
     df = pd.DataFrame(data)
-    _compute_polynomials_from_dataframe(df, 'Year', ['Value1', 'Value2'], degree=2)
+    _compute_polynomials_from_dataframe(df, 'Year', 'Value1', degree=2)
     ```
     """
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a Pandas DataFrame")
     if df.empty:
         raise ValueError("df cannot be empty")
-    if col_name_x not in df.columns:
-        raise ValueError(f"col_name_x '{col_name_x}' not found in df columns")
+    if col_name_x and col_name_y not in df.columns:
+        raise ValueError("col_name_x and col_name_y must be valid column names in df")
     if not isinstance(degree, int) or degree < 0:
         raise ValueError("degree must be a non-negative integer")
     if len(df) <= degree:
@@ -78,53 +77,48 @@ def _compute_polynomials_from_dataframe(
     df_func.sort_values(by=col_name_x, ascending=True, inplace=True)
     df_func.dropna(subset=[col_name_x], inplace=True)
 
-    dict_polynomials = {}
-    for col in list_col_names_y:
-        x_unfiltered = df_func[col_name_x].astype("float64")
-        y_unfiltered = df_func[col].astype("float64")
-        mask = y_unfiltered.notna() # ensure all NaNs are removed, otherwise the fit will fail
-        x = x_unfiltered[mask]
-        y = y_unfiltered[mask]
-        polynomial_fit = np.polynomial.Polynomial.fit(
-            x=x,
-            y=y,
-            deg=degree,
-        )
-        _r_squared_polynomial = _r_squared(y, polynomial_fit(x))
-        dict_polynomials[col] = polynomial_fit
-        dict_polynomials[f'{col}_r2'] = _r_squared_polynomial
+    dict_polynomial = {}
+    x_unfiltered = df_func[col_name_x].astype("float64")
+    y_unfiltered = df_func[col_name_y].astype("float64")
+    mask = y_unfiltered.notna() # ensure all NaNs are removed, otherwise the fit will fail
+    x = x_unfiltered[mask]
+    y = y_unfiltered[mask]
+    polynomial_fit = np.polynomial.Polynomial.fit(
+        x=x,
+        y=y,
+        deg=degree,
+    )
+    _r_squared_polynomial = _r_squared(y, polynomial_fit(x))
+    dict_polynomial['polynomial'] = polynomial_fit
+    dict_polynomial['r2'] = _r_squared_polynomial
 
     if plot is True:
         fig = go.Figure()
-        for col in list_col_names_y:
-            if col not in dict_polynomials:
-                continue
-
-            x_data = df_func[col_name_x].astype("float64")
-            y_data = df_func[col].astype("float64")
-            fig.add_trace(go.Scatter(
-                x=x_data,
-                y=y_data,
-                mode='markers',
-                name=f'{col} (Original Data)',
-                marker=dict(opacity=0.7)
-            ))
-            
-            polynomial_fit = dict_polynomials[col]
-            r_squared = dict_polynomials[f'{col}_r2']
-            x_fit = np.linspace(x_data.min(), x_data.max(), num=200)
-            y_fit = polynomial_fit(x_fit)
-            fig.add_trace(go.Scatter(
-                x=x_fit, 
-                y=y_fit,
-                mode='lines',
-                name=f'{col} (Fit, R²={r_squared:.3f})',
-                line=dict(width=3)
-            ))
+        x_data = df_func[col_name_x].astype("float64")
+        y_data = df_func[col_name_y].astype("float64")
+        fig.add_trace(go.Scatter(
+            x=x_data,
+            y=y_data,
+            mode='markers',
+            name=f'{col_name_y} (Original Data)',
+            marker=dict(opacity=0.7)
+        ))
+        
+        polynomial_fit = dict_polynomial['polynomial']
+        r_squared = dict_polynomial['r2']
+        x_fit = np.linspace(x_data.min(), x_data.max(), num=200)
+        y_fit = polynomial_fit(x_fit)
+        fig.add_trace(go.Scatter(
+            x=x_fit, 
+            y=y_fit,
+            mode='lines',
+            name=f'{col_name_y} (Fit, R²={r_squared:.3f})',
+            line=dict(width=3)
+        ))
 
         fig.show()
 
-    return dict_polynomials
+    return dict_polynomial
 
 
 def _r_squared(

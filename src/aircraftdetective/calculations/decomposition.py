@@ -142,7 +142,6 @@ def compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
     list_required_cols = [
         'Year',
-        'Type',
         'Energy Use (per ASK)',
         'Energy Intensity (per RPK)',
         'TSFC (cruise)',
@@ -155,22 +154,19 @@ def compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
             raise ValueError(f"Required column '{col}' not found in df columns")
         if df[col].isnull().all():
             raise ValueError(f"Column '{col}' cannot be all NaN")
-        # Corrected check to use 'Year'
-        if col not in ['Year', 'Type'] and not pd.api.types.is_numeric_dtype(df[col]):
+        if col not in ['Year'] and not pd.api.types.is_numeric_dtype(df[col]):
             raise ValueError(f"Column '{col}' must be of a numeric type.")
 
     df_func = df.copy()
-    # Corrected sort to use 'Year'
     df_func.sort_values(by='Year', ascending=True, inplace=True)
-    grouped = df_func.groupby('Type', group_keys=False)
 
     metrics_inverse = {
-        'Energy Use (per ASK)': True,    # lower is better
+        'Energy Use (per ASK)': True,        # lower is better
         'Energy Intensity (per RPK)': True,  # lower is better
-        'TSFC (cruise)': True,           # lower is better
-        'OEW/Exit Limit': True,          # lower is better
-        'L/D': False,                    # higher is better
-        'SLF': False                     # higher is better
+        'TSFC (cruise)': True,               # lower is better
+        'OEW/Exit Limit': True,              # lower is better
+        'L/D': False,                        # higher is better
+        'SLF': False                         # higher is better
     }
 
     # Map input metric columns to their desired output name suffixes
@@ -183,19 +179,16 @@ def compute_efficiency_improvement_metrics(df: pd.DataFrame) -> pd.DataFrame:
         'SLF': 'Operations'
     }
     
-    # Get the list of metric columns from the mapping
     metrics = list(metric_mapping.keys())
 
     baselines = {}
     for metric in metrics:
-        baselines[metric] = grouped[metric].transform(
-            lambda g: g.dropna().iloc[0] if g.notna().any() else np.nan
-        )
+        baselines[metric] = df_func[metric].dropna().iloc[0]
 
     # Loop using the metric_mapping to create the new column names
     for metric, output_suffix in metric_mapping.items():
         s = df_func[metric]
-        x0 = baselines[metric]
+        x0 = baselines[metric] # This is now a scalar baseline value
         inverse = metrics_inverse[metric]
 
         # Directional Index (>1 if improved)
