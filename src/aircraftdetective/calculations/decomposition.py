@@ -301,46 +301,60 @@ def compute_lmdi_factor_contributions(
     
     return delta_factor
 
-
 def _compute_lmdi_factor_contributions_vectorized(
-    aggregate_t1: pd.Series,
-    aggregate_t2: pd.Series, 
-    factor_t1: pd.Series,
-    factor_t2: pd.Series
+    aggregate_series: pd.Series, 
+    factor_series: pd.Series
 ) -> pd.Series:
     r"""
-    Vectorized version of 
-    [`compute_lmdi_factor_contributions`][aircraftdetective.calculations.decomposition.compute_lmdi_factor_contributions].
+    Vectorized version of compute_lmdi_factor_contributions, which
+    computes the contribution of a factor by comparing every row to 
+    the first row (t_1).
+
+    This implementation hard-codes the $t_1$ values to be the
+    scalar values from the first row (`.iloc[0]`) of the input Series.
 
     Parameters
     ----------
-    aggregate_t1 : pd.Series | float
-        Aggregate values at time t1.
-    aggregate_t2 : pd.Series | float
-        Aggregate values at time t2.
-    factor_t1 : pd.Series | float
-        Factor values at time t1.
-    factor_t2 : pd.Series | float
-        Factor values at time t2.
+    aggregate_series : pd.Series
+        A Series containing all aggregate values ($C$). The value
+        at index 0 will be used as $C(t_1)$.
+    factor_series : pd.Series
+        A Series containing all factor values ($C_i$). The value
+        at index 0 will be used as $C_i(t_1)$.
 
     Returns
     -------
     pd.Series
-        The calculated additive contribution of the factor to the aggregate.
+        The calculated additive contribution of the factor to the 
+        aggregate, relative to the first row. The first row of
+        the output will always be 0.0.
     """
+    if aggregate_series.empty or factor_series.empty:
+        return pd.Series(dtype='float64')
+
+    # --- Set t1 (first row) and t2 (all rows) ---
+    
+    # t1 values are scalars from the first row
+    aggregate_t1 = aggregate_series.iloc[0]
+    factor_t1 = factor_series.iloc[0]
+    
+    aggregate_t2 = aggregate_series
+    factor_t2 = factor_series
+    
     delta_aggregate = aggregate_t2 - aggregate_t1
     log_diff_aggregate = np.log(aggregate_t2) - np.log(aggregate_t1)
-    
+
     log_mean_aggregate = np.where(
         delta_aggregate == 0, 
-        aggregate_t1,
+        aggregate_t1,  # If no change, log mean is just the value
         delta_aggregate / log_diff_aggregate
     )
     
     log_ratio_factor = np.log(factor_t2 / factor_t1)
+    
     delta_contribution = log_mean_aggregate * log_ratio_factor
     
-    return pd.Series(delta_contribution).fillna(0.0)
+    return pd.Series(delta_contribution, index=aggregate_series.index).fillna(0.0)
 
 def compute_efficiency_disaggregation(df: pd.DataFrame) -> pd.DataFrame:
     r"""
@@ -419,13 +433,10 @@ def compute_efficiency_disaggregation(df: pd.DataFrame) -> pd.DataFrame:
         if col not in df.columns:
             raise ValueError(f"Required column '{col}' not found in df columns")
         if df[col].isnull().all():
-            raise ValueError(f"Column '{col}' cannot be all NaN")
-        
-        # --- FIX 1: Check ALL columns for numeric type ---
+            raise ValueError(f"Column '{col}' cannot be all NaN")        
         if not pd.api.types.is_numeric_dtype(df[col]):
             raise ValueError(f"Column '{col}' must be of a numeric type.")
             
-    # --- FIX 2: Check ONLY Index columns for non-positive values ---
     numeric_cols = [c for c in list_required_cols if c not in ['Year']]
     if (df[numeric_cols] <= 0).any().any():
             raise ValueError("All Index columns must contain positive values for LMDI.")
