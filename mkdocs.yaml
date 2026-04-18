@@ -5,6 +5,8 @@ copyright: © Paul Scherrer Institute (PSI) | Code under MIT License
 nav:
   - Home: 'index.md'
   - About: 'about.md'
+  - Getting Started:
+    - Installation: 'installation.md'
   - Theory:
     - Engine Efficiency: 'theory/engines.md'
     - Decomposition: 'theory/decomposition.md'
