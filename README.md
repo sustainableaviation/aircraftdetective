@@ -10,7 +10,7 @@ Maintenance Team: [@michaelweinold](https://github.com/michaelweinold)
 
 ## Installation
 
-See [the package documentation](https://aircraftdetective.readthedocs.io/) for installation instructions.
+See [the package documentation](https://aircraftdetective.readthedocs.io/en/latest/installation/) for installation instructions.
 
 ## Development
 
