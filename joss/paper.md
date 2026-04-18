@@ -114,6 +114,10 @@ V2533-A5 & 4.46 & 33.4 & 140.6 & 10.1 & 17.5 \\
 
 The package is organized as a small set of focused modules for calculations, data processing, and utilities. The `calculations` subpackage implements the core physics- and statistics-based methods, such as lift-to-drag estimation from the Breguet range equation, scaling of engine TSFC data, and decomposition of efficiency improvements. The `processing` subpackage handles ingestion and harmonization of public datasets such as US DOT Form 41 Schedule T-100/T2 data, while the `utility` subpackage provides reusable helpers for typed tabular data, polynomial fitting, and plotting.
 
+# Research Impact Statement
+
+The methods implemented in `aircraftdetective` have already contributed to realized scholarly outputs. They were used in the doctoral thesis _Hybrid Life-Cycle Assessment for Sustainable Aviation_ [@weinold2026hybridaviation], in the peer-reviewed _Letter to the Editor regarding “Methodological framework for life cycle assessment of sustainable aviation (SA) systems”_ [@weinold2025letter], and in the conference presentation _Technology Assessment of Future Air Transport Systems: Improving Emissions Forecasts with Physical Limits and Decomposition Analysis_ [@weinold2023technologyassessment]. These outputs demonstrate that the package is well-suited for reproducible work on both historical and future aircraft efficiency, fuel burn, and the environmental assessment of the air transport system.
+
 # Auxiliary Functions
 
 The `aircraftdetective` package includes helper functions for basic problems in atmospheric physics, such as computation of airspeed from mach number based on ambient pressure.
