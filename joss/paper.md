@@ -28,7 +28,7 @@ bibliography: paper.bib
 
 `aircraftdetective` is a Python package that allows users to compute the overall energy efficiency and constituent sub-efficiencies of commercial aircraft, based on publicly available data. It is designed to be used in the context of environmental impact assessment of air travel and energy systems analysis. It supports calculations in physical units, allowing for quick conversion between imperial and metric units and dimensionality checks of function inputs. It is lightweight (<40kB packaged), open-source and distributed under a permissive MIT license.
 
-# Statement of Need
+# Statement of need
 
 The total carbon emissions of passenger air transport can be described by an equation based on the _Kaya identity_ [@delbecq2023sustainable, Sec.3]:
 
@@ -54,7 +54,7 @@ Lee et al. [-@lee2001historical; -@lee2004aircraft] and Babikian et al. [-@babik
 
 The `aircraftdetective` package fills this gap as the first comprehensive Python package for computing the efficiency of commercial aircraft from publicly available information. It uses the governing equations of aerodynamics and thermodynamics together with publicly available aircraft and engine parameters to estimate aircraft sub-efficiencies and overall efficiency. While a publicly available dataset of aircraft specifications is provided by @weinold_zenodo_aircraftdetective_2025, users are free to use their own data.
 
-# State of the Field
+# State of the field
 
 Several established software tools address adjacent problems in aviation research. This includes tools for conceptual aircraft design, such as SUAVE [@lukaczyk2015suave] and FAST-OAD [@david2021fastoad], tools for aircraft performance and trajectory prediction, such as OpenAP [@sun2020openap] and EUROCONTROL BADA [@nuic2010bada; @eurocontrol2026bada] or tools for the comparison of methods for aircraft fuel consumption estimation, such as `jetfuelburn` [@weinold2026jetfuelburn]. While these tools are valuable and widely used, their primary purpose is vehicle design study, flight trajectory optimization, or aggregate fuel-burn estimation rather than historical benchmarking of in-service commercial aircraft efficiency from public datasets.
 
@@ -87,7 +87,7 @@ OpenMDAO (\href{https://doi.org/10.1007/s00158-019-02211-z}{2019}) & Py. & MDO f
 
 `aircraftdetective` therefore fills a different scholarly niche. It provides a transparent and lightweight workflow for reconstructing interpretable aircraft efficiency metrics and sub-efficiency proxies from publicly available aircraft, engine, and US DOT data, including aerodynamic efficiency via lift-to-drag ratio, propulsion efficiency proxies based on cruise TSFC, structural efficiency proxies based on weight per seat, and decomposition of historical efficiency improvements. This is the workflow needed to reproduce and extend the retrospective analyses of Lee et al.\ and Babikian et al.\ [@lee2001historical; @babikian2002historical], but it is not directly offered by the packages above.
 
-# Software Design
+# Software design
 
 The central design choice of `aircraftdetective` is to use tabular data structures based on `pandas` [-@reback2020pandas] DataFrames, augmented with \href{https://pypi.org/project/Pint/}{`pint`} and \href{https://pypi.org/project/Pint-Pandas/}{`pint-pandas`} for physical units and dimensionality checks. This reflects the format in which aircraft and engine data is most frequently stored and published: key public databases such as the @icao_eedb_2026 Databank organize records in tabular form, with each row representing one engine variant and columns covering bypass ratio, pressure ratio, rated thrust, and fuel flow at each certification thrust setting:
 
@@ -114,19 +114,19 @@ V2533-A5 & 4.46 & 33.4 & 140.6 & 10.1 & 17.5 \\
 
 The package is organized as a small set of focused modules for calculations, data processing, and utilities. The `calculations` subpackage implements the core physics- and statistics-based methods, such as lift-to-drag estimation from the Breguet range equation, scaling of engine TSFC data, and decomposition of efficiency improvements. The `processing` subpackage handles ingestion and harmonization of public datasets such as US DOT Form 41 Schedule T-100/T2 data, while the `utility` subpackage provides reusable helpers for typed tabular data, polynomial fitting, and plotting.
 
-# Research Impact Statement
+# Research impact statement
 
 The methods implemented in `aircraftdetective` have already contributed to realized scholarly outputs. They were used in the doctoral thesis _Hybrid Life-Cycle Assessment for Sustainable Aviation_ [@weinold2026hybridaviation], in the peer-reviewed _Letter to the Editor regarding “Methodological framework for life cycle assessment of sustainable aviation (SA) systems”_ [@weinold2025letter], and in the conference presentation _Technology Assessment of Future Air Transport Systems: Improving Emissions Forecasts with Physical Limits and Decomposition Analysis_ [@weinold2023technologyassessment]. These outputs demonstrate that the package is well-suited for reproducible work on both historical and future aircraft efficiency, fuel burn, and the environmental assessment of the air transport system.
 
-# Auxiliary Functions
+# Auxiliary functions
 
 The `aircraftdetective` package includes helper functions for basic problems in atmospheric physics, such as computation of airspeed from mach number based on ambient pressure.
 
-# Interactive Documentation
+# Interactive documentation
 
 The package documentation allows users to compute aircraft efficiency directly in the browser, without the need to install the package locally. This is achieved through the use of a [Pyodide](https://pyodide.org/en/stable/) WebAssembly Python kernel. The interactive documentation is available at [aircraftdetective.readthedocs.io](https://aircraftdetective.readthedocs.io).
 
-# AI Usage Disclosure
+# AI Usage disclosure
 
 Large language models (LLMs) were used as programming assistants for repository maintenance, the improvement of unit and integration tests, and the formatting of the JOSS publication. All resulting changes were reviewed by the authors.
 
